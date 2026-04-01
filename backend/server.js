@@ -8,7 +8,10 @@ const app = express();
 const testRoutes = require("./routes/testRoutes");
 const noticeRoutes = require("./routes/noticeRoutes");
 const cors = require("cors");
+const attendanceRoutes = require("./routes/attendanceRoutes");
 
+
+app.use("/api/attendance", attendanceRoutes);
 app.use(cors({
   origin: "http://localhost:5173",
   credentials: true

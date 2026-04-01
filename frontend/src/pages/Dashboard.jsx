@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import API from "../services/api";
 import NoticeForm from "../components/NoticeForm";
 import "./dashboard.css";
+import AttendanceForm from "../components/AttendanceForm";
+import AttendanceView from "../components/AttendanceView";
 
 export default function Dashboard() {
   const [notices, setNotices] = useState([]);
@@ -150,6 +152,19 @@ export default function Dashboard() {
               <p>{n.content}</p>
             </div>
           ))}
+        </div>
+      )}
+
+      {user.role === "faculty" && (
+        <div className="card">
+          <h3>Faculty Panel</h3>
+          <AttendanceForm />
+        </div>
+      )}
+
+      {user.role === "student" && (
+        <div>
+          <AttendanceView />
         </div>
       )}
 
