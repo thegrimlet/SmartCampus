@@ -4,6 +4,8 @@ import NoticeForm from "../components/NoticeForm";
 import "./dashboard.css";
 import AttendanceForm from "../components/AttendanceForm";
 import AttendanceView from "../components/AttendanceView";
+import UserApproval from "../components/UserApproval";
+import SubjectForm from "../components/SubjectForm";
 
 export default function Dashboard() {
   const [notices, setNotices] = useState([]);
@@ -138,6 +140,8 @@ export default function Dashboard() {
 
             </div>
           ))}
+          <UserApproval />
+          <SubjectForm />
         </div>
       )}
 
