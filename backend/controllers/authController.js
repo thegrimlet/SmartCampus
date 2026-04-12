@@ -2,47 +2,58 @@ const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
-// REGISTER
 exports.register = async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { name, email, password, role = "student" } = req.body;
+    const normalizedEmail = email?.trim().toLowerCase();
+    const allowedRoles = ["admin", "faculty", "student"];
 
-    const existingUser = await User.findOne({ email });
+    if (!name?.trim() || !normalizedEmail || !password) {
+      return res.status(400).json({ msg: "Name, email, and password are required" });
+    }
+
+    if (!allowedRoles.includes(role)) {
+      return res.status(400).json({ msg: "Invalid role" });
+    }
+
+    const existingUser = await User.findOne({ email: normalizedEmail });
     if (existingUser) {
       return res.status(400).json({ msg: "User already exists" });
     }
 
     const hashed = await bcrypt.hash(password, 10);
+    const hasApprovedAdmin = await User.exists({ role: "admin", status: "approved" });
+    const status = role === "admin" && !hasApprovedAdmin ? "approved" : "pending";
 
     await User.create({
-      name,
-      email,
+      name: name.trim(),
+      email: normalizedEmail,
       password: hashed,
       role,
-      status: "pending"
+      status
     });
 
     res.json({
-      msg: "Request submitted. Wait for admin approval."
+      msg: status === "approved"
+        ? "Admin account created. You can log in now."
+        : "Request submitted. Wait for admin approval."
     });
-
   } catch (err) {
     res.status(500).json({ msg: err.message });
   }
 };
 
-// LOGIN
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
+    const normalizedEmail = email?.trim().toLowerCase();
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: normalizedEmail });
     if (!user) return res.status(400).json({ msg: "User not found" });
 
     const match = await bcrypt.compare(password, user.password);
     if (!match) return res.status(400).json({ msg: "Wrong password" });
 
-    // 🔥 FIXED MESSAGE HERE
     if (user.status !== "approved") {
       return res.status(403).json({
         msg: "Your account is not approved yet. Please wait for admin approval."
@@ -55,8 +66,10 @@ exports.login = async (req, res) => {
       { expiresIn: "1d" }
     );
 
-    res.json({ token, user });
+    const safeUser = user.toObject();
+    delete safeUser.password;
 
+    res.json({ token, user: safeUser });
   } catch (err) {
     res.status(500).json({ msg: err.message });
   }

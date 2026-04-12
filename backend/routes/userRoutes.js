@@ -2,13 +2,16 @@ const router = require("express").Router();
 const User = require("../models/User");
 const auth = require("../middleware/authMiddleware");
 
-// GET ALL STUDENTS (ONLY APPROVED)
 router.get("/students", auth, async (req, res) => {
   try {
+    if (!["admin", "faculty"].includes(req.user.role)) {
+      return res.status(403).json({ msg: "Access denied" });
+    }
+
     const students = await User.find({
       role: "student",
-      status: "approved" // 🔥 important
-    }).select("-password");
+      status: "approved"
+    }).select("-password").sort({ name: 1 });
 
     res.json(students);
   } catch (err) {
@@ -16,44 +19,94 @@ router.get("/students", auth, async (req, res) => {
   }
 });
 
-// GET PENDING USERS
+router.get("/faculty", auth, async (req, res) => {
+  try {
+    if (!["admin", "student"].includes(req.user.role)) {
+      return res.status(403).json({ msg: "Access denied" });
+    }
+
+    const faculty = await User.find({
+      role: "faculty",
+      status: "approved"
+    }).select("-password").sort({ name: 1 });
+
+    res.json(faculty);
+  } catch (err) {
+    res.status(500).json({ msg: err.message });
+  }
+});
+
+router.get("/approved", auth, async (req, res) => {
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ msg: "Access denied" });
+    }
+
+    const users = await User.find({ status: "approved" })
+      .select("-password")
+      .sort({ role: 1, name: 1 });
+
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ msg: err.message });
+  }
+});
+
 router.get("/pending", auth, async (req, res) => {
-  if (req.user.role !== "admin") {
-    return res.status(403).json({ msg: "Access denied" });
-  }
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ msg: "Access denied" });
+    }
 
-  const users = await User.find({ status: "pending" }).select("-password");
-  res.json(users);
+    const users = await User.find({ status: "pending" }).select("-password").sort({ createdAt: 1 });
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ msg: err.message });
+  }
 });
 
-// APPROVE USER
 router.put("/approve/:id", auth, async (req, res) => {
-  if (req.user.role !== "admin") {
-    return res.status(403).json({ msg: "Access denied" });
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ msg: "Access denied" });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      { status: "approved" },
+      { new: true }
+    ).select("-password");
+
+    if (!user) {
+      return res.status(404).json({ msg: "User not found" });
+    }
+
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ msg: err.message });
   }
-
-  const user = await User.findByIdAndUpdate(
-    req.params.id,
-    { status: "approved" },
-    { new: true }
-  );
-
-  res.json(user);
 });
 
-// REJECT USER
 router.put("/reject/:id", auth, async (req, res) => {
-  if (req.user.role !== "admin") {
-    return res.status(403).json({ msg: "Access denied" });
+  try {
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ msg: "Access denied" });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      { status: "rejected" },
+      { new: true }
+    ).select("-password");
+
+    if (!user) {
+      return res.status(404).json({ msg: "User not found" });
+    }
+
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ msg: err.message });
   }
-
-  const user = await User.findByIdAndUpdate(
-    req.params.id,
-    { status: "rejected" },
-    { new: true }
-  );
-
-  res.json(user);
 });
 
 module.exports = router;

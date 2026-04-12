@@ -1,40 +1,56 @@
+import { Link } from "react-router-dom";
 import { useState } from "react";
 import API from "../services/api";
+import "./dashboard.css";
 
 export default function Login() {
-    const [form, setForm] = useState({ email: "", password: "" });
+  const [form, setForm] = useState({ email: "", password: "" });
+  const [message, setMessage] = useState("");
 
-    const handleLogin = async () => {
-        try {
-            const res = await API.post("/auth/login", form);
+  const handleLogin = async (event) => {
+    event.preventDefault();
+    setMessage("");
 
-            localStorage.setItem("token", res.data.token);
-            localStorage.setItem("user", JSON.stringify(res.data.user));
+    try {
+      const res = await API.post("/auth/login", form);
 
-            window.location.href = "/dashboard";
-        } catch (err) {
-            console.log(err.response?.data || err.message);
-            alert(err.response?.data?.msg || "Login failed");
-        }
-    };
+      localStorage.setItem("token", res.data.token);
+      localStorage.setItem("user", JSON.stringify(res.data.user));
 
-    return (
-        <div>
-            <h2>Login</h2>
+      window.location.href = "/dashboard";
+    } catch (err) {
+      setMessage(err.response?.data?.msg || "Login failed");
+    }
+  };
 
-            <input placeholder="Email"
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-            />
+  return (
+    <main className="auth-page">
+      <form className="auth-card form-grid" onSubmit={handleLogin}>
+        <p className="eyebrow">Smart Campus Management System</p>
+        <h1>Welcome Back</h1>
+        <p className="muted">Sign in to manage notices, attendance, subjects, and approvals.</p>
 
-            <input type="password" placeholder="Password"
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-            />
+        <input
+          placeholder="Email"
+          type="email"
+          value={form.email}
+          onChange={(e) => setForm({ ...form, email: e.target.value })}
+        />
 
-            <button onClick={handleLogin}>Login</button>
-            <p>
-                Don't have an account?{" "}
-                <a href="/register">Register</a>
-            </p>
-        </div>
-    );
+        <input
+          type="password"
+          placeholder="Password"
+          value={form.password}
+          onChange={(e) => setForm({ ...form, password: e.target.value })}
+        />
+
+        {message && <p className="muted">{message}</p>}
+
+        <button className="button primary" type="submit">Login</button>
+        <p className="muted">
+          Need an account? <Link to="/register">Register</Link>
+        </p>
+      </form>
+    </main>
+  );
 }

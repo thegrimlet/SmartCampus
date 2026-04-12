@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import API from "../services/api";
 
-export default function UserApproval() {
+export default function UserApproval({ onChanged }) {
   const [users, setUsers] = useState([]);
+  const [message, setMessage] = useState("");
 
   const fetchUsers = async () => {
     const res = await API.get("/users/pending");
@@ -10,37 +11,46 @@ export default function UserApproval() {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchUsers();
   }, []);
 
   const approve = async (id) => {
     await API.put(`/users/approve/${id}`);
-    fetchUsers();
+    await fetchUsers();
+    onChanged?.();
+    setMessage("User approved");
   };
 
   const reject = async (id) => {
     await API.put(`/users/reject/${id}`);
-    fetchUsers();
+    await fetchUsers();
+    onChanged?.();
+    setMessage("User rejected");
   };
 
   return (
-    <div className="card">
+    <div className="stack">
       <h3>Pending Approvals</h3>
+      {message && <p className="muted">{message}</p>}
 
       {users.length === 0 ? (
-        <p>No pending users</p>
+        <p className="muted">No pending users</p>
       ) : (
         users.map((u) => (
-          <div key={u._id} className="card">
-            <p>{u.name} ({u.email}) - {u.role}</p>
+          <div key={u._id} className="approval-row">
+            <p><strong>{u.name}</strong> ({u.role})</p>
+            <p className="muted">{u.email}</p>
 
-            <button className="button btn-save" onClick={() => approve(u._id)}>
-              Approve
-            </button>
+            <div className="button-row">
+              <button className="button btn-save" onClick={() => approve(u._id)}>
+                Approve
+              </button>
 
-            <button className="button btn-delete" onClick={() => reject(u._id)}>
-              Reject
-            </button>
+              <button className="button btn-delete" onClick={() => reject(u._id)}>
+                Reject
+              </button>
+            </div>
           </div>
         ))
       )}

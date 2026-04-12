@@ -4,83 +4,69 @@ import API from "../services/api";
 export default function AttendanceForm() {
   const [students, setStudents] = useState([]);
   const [subjects, setSubjects] = useState([]);
+  const [subject, setSubject] = useState("");
+  const [attendance, setAttendance] = useState({});
+  const [message, setMessage] = useState("");
 
-  const [form, setForm] = useState({
-    studentId: "",
-    subject: "",
-    status: "present"
-  });
-
-  // 🔥 Fetch students + subjects
   useEffect(() => {
     const fetchData = async () => {
-      try {
-        const studentRes = await API.get("/users/students");
-        const subjectRes = await API.get("/subjects");
+      const studentRes = await API.get("/users/students");
+      const subjectRes = await API.get("/subjects");
 
-        setStudents(studentRes.data);
-        setSubjects(subjectRes.data);
-      } catch (err) {
-        console.log(err.response?.data || err.message);
-      }
+      setStudents(studentRes.data);
+      setSubjects(subjectRes.data);
+
+      const initial = {};
+      studentRes.data.forEach((student) => {
+        initial[student._id] = "present";
+      });
+
+      setAttendance(initial);
     };
 
     fetchData();
   }, []);
 
-  // 🔥 Submit attendance
-  const handleSubmit = async () => {
-    if (!form.studentId || !form.subject) {
-      return alert("Please select student and subject");
+  const handleChange = (studentId, status) => {
+    setAttendance({
+      ...attendance,
+      [studentId]: status
+    });
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setMessage("");
+
+    if (!subject) {
+      setMessage("Select a subject first");
+      return;
     }
 
-    try {
-      await API.post("/attendance", form);
-      alert("Attendance marked");
+    const records = Object.keys(attendance).map((id) => ({
+      studentId: id,
+      subject,
+      status: attendance[id]
+    }));
 
-      // reset form
-      setForm({
-        studentId: "",
-        subject: "",
-        status: "present"
-      });
+    try {
+      const res = await API.post("/attendance", { records });
+      setMessage(`${res.data.saved.length} saved, ${res.data.skipped} skipped`);
     } catch (err) {
-      console.log(err.response?.data || err.message);
-      alert("Error marking attendance");
+      setMessage(err.response?.data?.msg || "Error marking attendance");
     }
   };
 
   return (
-    <div className="card">
+    <form className="stack" onSubmit={handleSubmit}>
       <h3>Mark Attendance</h3>
 
-      {/* STUDENT DROPDOWN */}
       <select
         className="input"
-        value={form.studentId}
-        onChange={(e) =>
-          setForm({ ...form, studentId: e.target.value })
-        }
+        value={subject}
+        onChange={(e) => setSubject(e.target.value)}
       >
-        <option value="">Select Student</option>
-
-        {students.map((s) => (
-          <option key={s._id} value={s._id}>
-            {s.name} ({s.email})
-          </option>
-        ))}
-      </select>
-
-      {/* SUBJECT DROPDOWN */}
-      <select
-        className="input"
-        value={form.subject}
-        onChange={(e) =>
-          setForm({ ...form, subject: e.target.value })
-        }
-      >
-        <option value="">Select Subject</option>
-
+        <option value="">Select subject</option>
         {subjects.map((s) => (
           <option key={s._id} value={s.name}>
             {s.name}
@@ -88,21 +74,46 @@ export default function AttendanceForm() {
         ))}
       </select>
 
-      {/* STATUS */}
-      <select
-        className="input"
-        value={form.status}
-        onChange={(e) =>
-          setForm({ ...form, status: e.target.value })
-        }
-      >
-        <option value="present">Present</option>
-        <option value="absent">Absent</option>
-      </select>
+      <div className="stack">
+        {students.length === 0 ? (
+          <p className="muted">No approved students yet.</p>
+        ) : (
+          students.map((s) => (
+            <div key={s._id} className="student-row">
+              <strong>{s.name}</strong>
+              <p className="muted">{s.email}</p>
 
-      <button className="button btn-save" onClick={handleSubmit}>
-        Submit
+              <div className="attendance-status">
+                <label>
+                  <input
+                    type="radio"
+                    name={s._id}
+                    checked={attendance[s._id] === "present"}
+                    onChange={() => handleChange(s._id, "present")}
+                  />
+                  Present
+                </label>
+
+                <label>
+                  <input
+                    type="radio"
+                    name={s._id}
+                    checked={attendance[s._id] === "absent"}
+                    onChange={() => handleChange(s._id, "absent")}
+                  />
+                  Absent
+                </label>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {message && <p className="muted">{message}</p>}
+
+      <button className="button btn-save" type="submit">
+        Submit Attendance
       </button>
-    </div>
+    </form>
   );
 }

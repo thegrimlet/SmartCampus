@@ -8,30 +8,44 @@ const noticeRoutes = require("./routes/noticeRoutes");
 const attendanceRoutes = require("./routes/attendanceRoutes");
 const userRoutes = require("./routes/userRoutes");
 const subjectRoutes = require("./routes/subjectRoutes");
-const app = express();
+const adminRoutes = require("./routes/adminRoutes");
+const profileRoutes = require("./routes/profileRoutes");
+const timetableRoutes = require("./routes/timetableRoutes");
+const paymentRoutes = require("./routes/paymentRoutes");
+const resultRoutes = require("./routes/resultRoutes");
+const messageRoutes = require("./routes/messageRoutes");
 
-// ✅ ALWAYS FIRST
+const app = express();
+const PORT = process.env.PORT || 5000;
+
 app.use(cors({
-  origin: "http://localhost:5173",
+  origin: process.env.CLIENT_URL || "http://localhost:5173",
   credentials: true
 }));
 
 app.use(express.json());
 
-// ✅ THEN ROUTES
+app.get("/api/health", (req, res) => {
+  res.json({ status: "ok", service: "smart-campus-api" });
+});
+
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/notices", noticeRoutes);
 app.use("/api/test", testRoutes);
 app.use("/api/subjects", subjectRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/profiles", profileRoutes);
+app.use("/api/timetable", timetableRoutes);
+app.use("/api/payments", paymentRoutes);
+app.use("/api/results", resultRoutes);
+app.use("/api/messages", messageRoutes);
 
-// DB
 mongoose.connect(process.env.MONGO_URI, {
   family: 4
 })
   .then(() => console.log("MongoDB connected"))
   .catch(err => console.log(err));
 
-// SERVER
-app.listen(5000, () => console.log("Server running on port 5000"));
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
