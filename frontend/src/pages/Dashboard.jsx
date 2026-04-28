@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import API from "../services/api";
 import NoticeForm from "../components/NoticeForm";
@@ -6,11 +7,12 @@ import AttendanceForm from "../components/AttendanceForm";
 import AttendanceView from "../components/AttendanceView";
 import UserApproval from "../components/UserApproval";
 import SubjectForm from "../components/SubjectForm";
-import ProfilePanel from "../components/ProfilePanel";
+import ClassAssignmentPanel from "../components/ClassAssignmentPanel";
 import TimetablePanel from "../components/TimetablePanel";
 import PaymentsPanel from "../components/PaymentsPanel";
 import ResultsPanel from "../components/ResultsPanel";
 import MessagesPanel from "../components/MessagesPanel";
+import StudentPortal from "../components/StudentPortal";
 
 export default function Dashboard() {
   const [notices, setNotices] = useState([]);
@@ -86,6 +88,10 @@ export default function Dashboard() {
 
   if (!user) return <h2>Not logged in</h2>;
 
+  if (user.role === "student") {
+    return <StudentPortal user={user} onLogout={handleLogout} />;
+  }
+
   return (
     <main className="dashboard">
       <div className="shell">
@@ -96,9 +102,14 @@ export default function Dashboard() {
             <p className="muted">{user.name} - {user.email}</p>
           </div>
 
-          <button className="button logout" onClick={handleLogout}>
-            Logout
-          </button>
+          <div className="button-row">
+            <Link className="button btn-edit link-button" to="/profile">
+              Profile
+            </Link>
+            <button className="button logout" onClick={handleLogout}>
+              Logout
+            </button>
+          </div>
         </section>
 
         <section className="grid">
@@ -131,10 +142,10 @@ export default function Dashboard() {
               </div>
 
               <div className="panel panel-half">
-                <ProfilePanel user={user} adminMode />
+                <ClassAssignmentPanel />
               </div>
 
-              <div className="panel panel-half">
+              <div className="panel panel-full">
                 <TimetablePanel user={user} />
               </div>
 
@@ -226,9 +237,6 @@ export default function Dashboard() {
           {user.role === "faculty" && (
             <>
               <div className="panel panel-half">
-                <ProfilePanel user={user} />
-              </div>
-              <div className="panel panel-half">
                 <TimetablePanel user={user} />
               </div>
               <div className="panel panel-half">
@@ -243,28 +251,6 @@ export default function Dashboard() {
             </>
           )}
 
-          {user.role === "student" && (
-            <>
-              <div className="panel panel-half">
-                <ProfilePanel user={user} />
-              </div>
-              <div className="panel panel-half">
-                <TimetablePanel user={user} />
-              </div>
-              <div className="panel panel-half">
-                <AttendanceView />
-              </div>
-              <div className="panel panel-half">
-                <ResultsPanel user={user} />
-              </div>
-              <div className="panel panel-half">
-                <PaymentsPanel user={user} />
-              </div>
-              <div className="panel panel-half">
-                <MessagesPanel user={user} />
-              </div>
-            </>
-          )}
         </section>
       </div>
     </main>

@@ -2,15 +2,15 @@ import { useEffect, useState } from "react";
 import API from "../services/api";
 
 const emptyProfile = {
+  email: "",
   course: "",
   semester: "",
   department: "",
   rollNumber: "",
-  employeeId: "",
   phone: "",
   address: "",
   assignedSubjects: "",
-  assignedClasses: ""
+  assignedClass: ""
 };
 
 export default function ProfilePanel({ user, adminMode = false }) {
@@ -36,21 +36,25 @@ export default function ProfilePanel({ user, adminMode = false }) {
       const endpoint = adminMode ? `/profiles/user/${selectedUser}` : "/profiles/me";
       const res = await API.get(endpoint);
       const profile = res.data || {};
+      const selectedAccount = adminMode
+        ? users.find((item) => item._id === selectedUser)
+        : user;
+
       setForm({
+        email: profile.user?.email || selectedAccount?.email || "",
         course: profile.course || "",
         semester: profile.semester || "",
         department: profile.department || "",
         rollNumber: profile.rollNumber || "",
-        employeeId: profile.employeeId || "",
         phone: profile.phone || "",
         address: profile.address || "",
         assignedSubjects: (profile.assignedSubjects || []).join(", "),
-        assignedClasses: (profile.assignedClasses || []).join(", ")
+        assignedClass: profile.assignedClass || ""
       });
     };
 
     if (selectedUser) loadProfile();
-  }, [adminMode, selectedUser]);
+  }, [adminMode, selectedUser, user, users]);
 
   const saveProfile = async (event) => {
     event.preventDefault();
@@ -59,15 +63,20 @@ export default function ProfilePanel({ user, adminMode = false }) {
     await API.put(`/profiles/user/${adminMode ? selectedUser : user._id}`, {
       ...form,
       assignedSubjects: form.assignedSubjects.split(",").map((item) => item.trim()).filter(Boolean),
-      assignedClasses: form.assignedClasses.split(",").map((item) => item.trim()).filter(Boolean)
+      assignedClass: form.assignedClass.trim()
     });
+
+    if (!adminMode) {
+      const updatedUser = { ...user, email: form.email.trim().toLowerCase() };
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+    }
 
     setMessage("Profile saved");
   };
 
   return (
     <form className="stack" onSubmit={saveProfile}>
-      <h3>{adminMode ? "Student & Faculty Profiles" : "My Profile"}</h3>
+      <h3>{adminMode ? "Academic Assignments" : "My Profile"}</h3>
 
       {adminMode && (
         <select className="input" value={selectedUser} onChange={(e) => setSelectedUser(e.target.value)}>
@@ -80,16 +89,24 @@ export default function ProfilePanel({ user, adminMode = false }) {
       )}
 
       <div className="two-column">
-        <input className="input" placeholder="Course" value={form.course} onChange={(e) => setForm({ ...form, course: e.target.value })} />
-        <input className="input" placeholder="Semester" value={form.semester} onChange={(e) => setForm({ ...form, semester: e.target.value })} />
-        <input className="input" placeholder="Department" value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} />
-        <input className="input" placeholder="Roll number" value={form.rollNumber} onChange={(e) => setForm({ ...form, rollNumber: e.target.value })} />
-        <input className="input" placeholder="Employee ID" value={form.employeeId} onChange={(e) => setForm({ ...form, employeeId: e.target.value })} />
+        <input className="input" type="email" placeholder="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
         <input className="input" placeholder="Phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
       </div>
 
-      <input className="input" placeholder="Assigned subjects, comma separated" value={form.assignedSubjects} onChange={(e) => setForm({ ...form, assignedSubjects: e.target.value })} />
-      <input className="input" placeholder="Assigned classes, comma separated" value={form.assignedClasses} onChange={(e) => setForm({ ...form, assignedClasses: e.target.value })} />
+      {adminMode && (
+        <>
+          <div className="two-column">
+            <input className="input" placeholder="Course" value={form.course} onChange={(e) => setForm({ ...form, course: e.target.value })} />
+            <input className="input" placeholder="Semester" value={form.semester} onChange={(e) => setForm({ ...form, semester: e.target.value })} />
+            <input className="input" placeholder="Department" value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} />
+            <input className="input" placeholder="Roll number" value={form.rollNumber} onChange={(e) => setForm({ ...form, rollNumber: e.target.value })} />
+          </div>
+
+          <input className="input" placeholder="Assigned subjects, comma separated" value={form.assignedSubjects} onChange={(e) => setForm({ ...form, assignedSubjects: e.target.value })} />
+          <input className="input" placeholder="Assigned class" value={form.assignedClass} onChange={(e) => setForm({ ...form, assignedClass: e.target.value })} />
+        </>
+      )}
+
       <textarea className="input" placeholder="Address" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
 
       {message && <p className="muted">{message}</p>}

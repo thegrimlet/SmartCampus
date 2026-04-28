@@ -11,11 +11,10 @@ const profileSchema = new mongoose.Schema({
   semester: { type: String, trim: true },
   department: { type: String, trim: true },
   rollNumber: { type: String, trim: true },
-  employeeId: { type: String, trim: true },
   phone: { type: String, trim: true },
   address: { type: String, trim: true },
   assignedSubjects: [{ type: String, trim: true }],
-  assignedClasses: [{ type: String, trim: true }]
+  assignedClass: { type: String, trim: true }
 }, { timestamps: true });
 
 module.exports = mongoose.model("Profile", profileSchema);

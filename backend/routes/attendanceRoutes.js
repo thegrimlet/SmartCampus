@@ -1,5 +1,6 @@
 const router = require("express").Router();
 const Attendance = require("../models/Attendance");
+const Profile = require("../models/Profile");
 const auth = require("../middleware/authMiddleware");
 
 router.post("/", auth, async (req, res) => {
@@ -8,9 +9,17 @@ router.post("/", auth, async (req, res) => {
       return res.status(403).json({ msg: "Only faculty can mark attendance" });
     }
 
-    const { records } = req.body;
+    const { records, className, subject } = req.body;
     if (!Array.isArray(records) || records.length === 0) {
       return res.status(400).json({ msg: "Attendance records are required" });
+    }
+
+    const facultyProfile = await Profile.findOne({ user: req.user.id });
+    const allowedClass = facultyProfile?.assignedClass === className;
+    const allowedSubject = facultyProfile?.assignedSubjects?.includes(subject);
+
+    if (!allowedClass || !allowedSubject) {
+      return res.status(403).json({ msg: "You are not assigned to this class and subject" });
     }
 
     const start = new Date();
@@ -21,7 +30,8 @@ router.post("/", auth, async (req, res) => {
 
     const validRecords = records.filter((record) =>
       record.studentId &&
-      record.subject &&
+      subject &&
+      className &&
       ["present", "absent"].includes(record.status)
     );
 
@@ -30,12 +40,18 @@ router.post("/", auth, async (req, res) => {
     for (const record of validRecords) {
       const existing = await Attendance.findOne({
         studentId: record.studentId,
-        subject: record.subject,
+        subject,
+        className,
         date: { $gte: start, $lte: end }
       });
 
       if (!existing) {
-        newRecords.push(record);
+        newRecords.push({
+          studentId: record.studentId,
+          subject,
+          className,
+          status: record.status
+        });
       }
     }
 

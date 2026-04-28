@@ -6,6 +6,7 @@ const attendanceSchema = new mongoose.Schema({
     ref: "User"
   },
   subject: String,
+  className: String,
   date: {
     type: Date,
     default: Date.now

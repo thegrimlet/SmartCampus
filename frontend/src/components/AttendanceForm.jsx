@@ -4,28 +4,44 @@ import API from "../services/api";
 export default function AttendanceForm() {
   const [students, setStudents] = useState([]);
   const [subjects, setSubjects] = useState([]);
+  const [className, setClassName] = useState("");
   const [subject, setSubject] = useState("");
   const [attendance, setAttendance] = useState({});
   const [message, setMessage] = useState("");
 
   useEffect(() => {
     const fetchData = async () => {
-      const studentRes = await API.get("/users/students");
-      const subjectRes = await API.get("/subjects");
+      const profileRes = await API.get("/profiles/me");
+      const profile = profileRes.data || {};
 
+      setClassName(profile.assignedClass || "");
+      setSubjects(profile.assignedSubjects || []);
+      setSubject(profile.assignedSubjects?.[0] || "");
+    };
+
+    fetchData();
+  }, []);
+
+  useEffect(() => {
+    const fetchStudents = async () => {
+      if (!className) {
+        setStudents([]);
+        setAttendance({});
+        return;
+      }
+
+      const studentRes = await API.get(`/users/students?className=${encodeURIComponent(className)}`);
       setStudents(studentRes.data);
-      setSubjects(subjectRes.data);
 
       const initial = {};
       studentRes.data.forEach((student) => {
         initial[student._id] = "present";
       });
-
       setAttendance(initial);
     };
 
-    fetchData();
-  }, []);
+    fetchStudents();
+  }, [className]);
 
   const handleChange = (studentId, status) => {
     setAttendance({
@@ -38,19 +54,18 @@ export default function AttendanceForm() {
     event.preventDefault();
     setMessage("");
 
-    if (!subject) {
-      setMessage("Select a subject first");
+    if (!className || !subject) {
+      setMessage("Select a class and subject first");
       return;
     }
 
     const records = Object.keys(attendance).map((id) => ({
       studentId: id,
-      subject,
       status: attendance[id]
     }));
 
     try {
-      const res = await API.post("/attendance", { records });
+      const res = await API.post("/attendance", { records, className, subject });
       setMessage(`${res.data.saved.length} saved, ${res.data.skipped} skipped`);
     } catch (err) {
       setMessage(err.response?.data?.msg || "Error marking attendance");
@@ -63,13 +78,22 @@ export default function AttendanceForm() {
 
       <select
         className="input"
+        value={className}
+        onChange={(e) => setClassName(e.target.value)}
+      >
+        <option value="">Select class</option>
+        {className && <option value={className}>{className}</option>}
+      </select>
+
+      <select
+        className="input"
         value={subject}
         onChange={(e) => setSubject(e.target.value)}
       >
         <option value="">Select subject</option>
         {subjects.map((s) => (
-          <option key={s._id} value={s.name}>
-            {s.name}
+          <option key={s} value={s}>
+            {s}
           </option>
         ))}
       </select>

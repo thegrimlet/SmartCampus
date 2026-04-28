@@ -1,5 +1,6 @@
 const router = require("express").Router();
 const Profile = require("../models/Profile");
+const ClassAssignment = require("../models/ClassAssignment");
 const User = require("../models/User");
 const auth = require("../middleware/authMiddleware");
 
@@ -24,8 +25,22 @@ router.get("/", auth, async (req, res) => {
 
 router.get("/me", auth, async (req, res) => {
   try {
-    const profile = await Profile.findOne({ user: req.user.id })
+    let profile = await Profile.findOne({ user: req.user.id })
       .populate("user", "name email role status");
+
+    if (req.user.role === "student" && profile?.assignedClass) {
+      const classAssignment = await ClassAssignment.findOne({ className: profile.assignedClass });
+      if (classAssignment) {
+        profile = {
+          ...profile.toObject(),
+          course: classAssignment.course,
+          semester: classAssignment.semester,
+          department: classAssignment.department,
+          classTeacher: classAssignment.classTeacher,
+          assignedSubjects: classAssignment.subjects
+        };
+      }
+    }
 
     res.json(profile);
   } catch (err) {
@@ -59,19 +74,34 @@ router.put("/user/:userId", auth, async (req, res) => {
       return res.status(404).json({ msg: "User not found" });
     }
 
+    const normalizedEmail = req.body.email?.trim().toLowerCase();
+    if (normalizedEmail && normalizedEmail !== user.email) {
+      const existing = await User.findOne({ email: normalizedEmail, _id: { $ne: user._id } });
+      if (existing) {
+        return res.status(400).json({ msg: "Email already exists" });
+      }
+
+      user.email = normalizedEmail;
+      await user.save();
+    }
+
+    const profileUpdate = {
+      phone: req.body.phone,
+      address: req.body.address
+    };
+
+    if (req.user.role === "admin") {
+      profileUpdate.rollNumber = req.body.rollNumber;
+      profileUpdate.assignedClass = req.body.assignedClass;
+
+      if (user.role === "faculty") {
+        profileUpdate.assignedSubjects = req.body.assignedSubjects || [];
+      }
+    }
+
     const profile = await Profile.findOneAndUpdate(
       { user: req.params.userId },
-      {
-        course: req.body.course,
-        semester: req.body.semester,
-        department: req.body.department,
-        rollNumber: req.body.rollNumber,
-        employeeId: req.body.employeeId,
-        phone: req.body.phone,
-        address: req.body.address,
-        assignedSubjects: req.body.assignedSubjects || [],
-        assignedClasses: req.body.assignedClasses || []
-      },
+      profileUpdate,
       { new: true, upsert: true, runValidators: true }
     ).populate("user", "name email role status");
 

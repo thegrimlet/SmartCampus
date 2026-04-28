@@ -1,5 +1,6 @@
 const router = require("express").Router();
 const User = require("../models/User");
+const Profile = require("../models/Profile");
 const auth = require("../middleware/authMiddleware");
 
 router.get("/students", auth, async (req, res) => {
@@ -8,10 +9,17 @@ router.get("/students", auth, async (req, res) => {
       return res.status(403).json({ msg: "Access denied" });
     }
 
-    const students = await User.find({
+    const query = {
       role: "student",
       status: "approved"
-    }).select("-password").sort({ name: 1 });
+    };
+
+    if (req.query.className) {
+      const profiles = await Profile.find({ assignedClass: req.query.className }).select("user");
+      query._id = { $in: profiles.map((profile) => profile.user) };
+    }
+
+    const students = await User.find(query).select("-password").sort({ name: 1 });
 
     res.json(students);
   } catch (err) {
