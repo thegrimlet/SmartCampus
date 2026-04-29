@@ -63,7 +63,10 @@ export default function AttendanceView() {
         {records.slice(0, 10).map((r) => (
           <div className="record-row" key={r._id}>
             <strong>{r.subject}</strong>
-            <p className="muted">{r.status} on {new Date(r.date).toLocaleDateString()}</p>
+            <p className="muted">
+              {r.className} | {r.status} on {new Date(r.lectureDate || r.date).toLocaleDateString()}
+              {r.startTime && r.endTime ? ` | ${r.startTime}-${r.endTime}` : ""}
+            </p>
           </div>
         ))}
       </div>

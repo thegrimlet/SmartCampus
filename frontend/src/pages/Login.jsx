@@ -28,7 +28,7 @@ export default function Login() {
       <form className="auth-card form-grid" onSubmit={handleLogin}>
         <p className="eyebrow">Smart Campus Management System</p>
         <h1>Welcome Back</h1>
-        <p className="muted">Sign in to manage notices, attendance, subjects, and approvals.</p>
+        <p className="muted">Sign in after email verification.</p>
 
         <input
           placeholder="Email"

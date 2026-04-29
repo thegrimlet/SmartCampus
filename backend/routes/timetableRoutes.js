@@ -24,9 +24,9 @@ router.post("/", auth, async (req, res) => {
       return res.status(403).json({ msg: "Access denied" });
     }
 
-    const faculty = await User.findOne({ _id: req.body.faculty, role: "faculty", status: "approved" });
+    const faculty = await User.findOne({ _id: req.body.faculty, role: "faculty", emailVerified: true });
     if (!faculty) {
-      return res.status(404).json({ msg: "Approved faculty not found" });
+      return res.status(404).json({ msg: "Verified faculty not found" });
     }
 
     const conflict = await findConflict(req.body);
@@ -48,9 +48,9 @@ router.put("/slot", auth, async (req, res) => {
       return res.status(403).json({ msg: "Access denied" });
     }
 
-    const faculty = await User.findOne({ _id: req.body.faculty, role: "faculty", status: "approved" });
+    const faculty = await User.findOne({ _id: req.body.faculty, role: "faculty", emailVerified: true });
     if (!faculty) {
-      return res.status(404).json({ msg: "Approved faculty not found" });
+      return res.status(404).json({ msg: "Verified faculty not found" });
     }
 
     const existing = await Timetable.findOne({

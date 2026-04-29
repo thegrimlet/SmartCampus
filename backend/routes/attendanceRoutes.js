@@ -1,66 +1,196 @@
 const router = require("express").Router();
 const Attendance = require("../models/Attendance");
 const Profile = require("../models/Profile");
+const Timetable = require("../models/Timetable");
+const User = require("../models/User");
 const auth = require("../middleware/authMiddleware");
 
-router.post("/", auth, async (req, res) => {
+const weekDays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+const parseLectureDate = (value) => {
+  const date = value ? new Date(`${value}T00:00:00`) : new Date();
+  date.setHours(0, 0, 0, 0);
+  return date;
+};
+
+const endOfDay = (date) => {
+  const value = new Date(date);
+  value.setHours(23, 59, 59, 999);
+  return value;
+};
+
+const getFacultyLecture = async (req, { className, lectureDate, startTime, endTime }) => {
+  const day = weekDays[lectureDate.getDay()];
+
+  return Timetable.findOne({
+    faculty: req.user.id,
+    className,
+    day,
+    startTime,
+    endTime
+  }).populate("faculty", "name email");
+};
+
+router.get("/faculty/lectures", auth, async (req, res) => {
+  try {
+    if (req.user.role !== "faculty") {
+      return res.status(403).json({ msg: "Only faculty can access lecture slots" });
+    }
+
+    const lectureDate = parseLectureDate(req.query.date);
+    const day = weekDays[lectureDate.getDay()];
+    const query = {
+      faculty: req.user.id,
+      day
+    };
+
+    if (req.query.className) {
+      query.className = req.query.className;
+    }
+
+    const lectures = await Timetable.find(query)
+      .sort({ className: 1, startTime: 1 })
+      .select("className subject day startTime endTime room course semester");
+
+    const classNames = [...new Set(lectures.map((lecture) => lecture.className))];
+
+    res.json({
+      date: lectureDate,
+      day,
+      classes: classNames,
+      lectures
+    });
+  } catch (err) {
+    res.status(500).json({ msg: err.message });
+  }
+});
+
+router.get("/faculty/session", auth, async (req, res) => {
+  try {
+    if (req.user.role !== "faculty") {
+      return res.status(403).json({ msg: "Only faculty can access attendance sessions" });
+    }
+
+    const { className, startTime, endTime } = req.query;
+    const lectureDate = parseLectureDate(req.query.date);
+
+    if (!className || !startTime || !endTime) {
+      return res.status(400).json({ msg: "Class, date, and lecture slot are required" });
+    }
+
+    const lecture = await getFacultyLecture(req, { className, lectureDate, startTime, endTime });
+    if (!lecture) {
+      return res.status(403).json({ msg: "You are not assigned to this lecture slot" });
+    }
+
+    const profiles = await Profile.find({ assignedClass: className }).select("user rollNumber");
+    const studentIds = profiles.map((profile) => profile.user);
+    const classStudentsRaw = await User.find({
+      _id: { $in: studentIds },
+      role: "student",
+      emailVerified: true
+    }).select("-password");
+
+    const byUserId = new Map(profiles.map((profile) => [profile.user.toString(), profile.rollNumber || ""]));
+    const classStudents = classStudentsRaw
+      .sort((a, b) => {
+        const rollA = byUserId.get(a._id.toString()) || "";
+        const rollB = byUserId.get(b._id.toString()) || "";
+        return rollA.localeCompare(rollB) || a.name.localeCompare(b.name);
+      });
+
+    const records = await Attendance.find({
+      className,
+      subject: lecture.subject,
+      lectureDate: { $gte: lectureDate, $lte: endOfDay(lectureDate) },
+      startTime,
+      endTime
+    });
+
+    const statusByStudent = Object.fromEntries(
+      records.map((record) => [record.studentId.toString(), record.status])
+    );
+
+    res.json({
+      lecture,
+      students: classStudents.map((student) => ({
+        ...student.toObject(),
+        rollNumber: byUserId.get(student._id.toString()) || "",
+        status: statusByStudent[student._id.toString()] || "present"
+      })),
+      existingCount: records.length
+    });
+  } catch (err) {
+    res.status(500).json({ msg: err.message });
+  }
+});
+
+router.put("/faculty/session", auth, async (req, res) => {
   try {
     if (req.user.role !== "faculty") {
       return res.status(403).json({ msg: "Only faculty can mark attendance" });
     }
 
-    const { records, className, subject } = req.body;
-    if (!Array.isArray(records) || records.length === 0) {
-      return res.status(400).json({ msg: "Attendance records are required" });
+    const { className, startTime, endTime, records } = req.body;
+    const lectureDate = parseLectureDate(req.body.date);
+
+    if (!className || !startTime || !endTime || !Array.isArray(records) || records.length === 0) {
+      return res.status(400).json({ msg: "Class, lecture slot, and attendance records are required" });
     }
 
-    const facultyProfile = await Profile.findOne({ user: req.user.id });
-    const allowedClass = facultyProfile?.assignedClass === className;
-    const allowedSubject = facultyProfile?.assignedSubjects?.includes(subject);
-
-    if (!allowedClass || !allowedSubject) {
-      return res.status(403).json({ msg: "You are not assigned to this class and subject" });
+    const lecture = await getFacultyLecture(req, { className, lectureDate, startTime, endTime });
+    if (!lecture) {
+      return res.status(403).json({ msg: "You are not assigned to this lecture slot" });
     }
-
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
-
-    const end = new Date();
-    end.setHours(23, 59, 59, 999);
 
     const validRecords = records.filter((record) =>
-      record.studentId &&
-      subject &&
-      className &&
-      ["present", "absent"].includes(record.status)
+      record.studentId && ["present", "absent"].includes(record.status)
     );
 
-    const newRecords = [];
+    let created = 0;
+    let updated = 0;
 
     for (const record of validRecords) {
       const existing = await Attendance.findOne({
         studentId: record.studentId,
-        subject,
         className,
-        date: { $gte: start, $lte: end }
+        subject: lecture.subject,
+        lectureDate: { $gte: lectureDate, $lte: endOfDay(lectureDate) },
+        startTime,
+        endTime
       });
 
-      if (!existing) {
-        newRecords.push({
+      if (existing) {
+        existing.status = record.status;
+        existing.faculty = req.user.id;
+        existing.timetableEntry = lecture._id;
+        existing.day = lecture.day;
+        await existing.save();
+        updated += 1;
+      } else {
+        await Attendance.create({
           studentId: record.studentId,
-          subject,
+          faculty: req.user.id,
+          timetableEntry: lecture._id,
+          subject: lecture.subject,
           className,
-          status: record.status
+          lectureDate,
+          day: lecture.day,
+          startTime,
+          endTime,
+          status: record.status,
+          date: lectureDate
         });
+        created += 1;
       }
     }
 
-    const saved = newRecords.length ? await Attendance.insertMany(newRecords) : [];
-
     res.json({
-      saved,
-      skipped: validRecords.length - saved.length,
-      invalid: records.length - validRecords.length
+      msg: "Attendance saved",
+      created,
+      updated,
+      invalid: records.length - validRecords.length,
+      lecture
     });
   } catch (err) {
     res.status(500).json({ msg: err.message });
@@ -103,7 +233,7 @@ router.get("/:studentId", auth, async (req, res) => {
 
     const records = await Attendance.find({
       studentId: req.params.studentId
-    }).sort({ date: -1 });
+    }).sort({ lectureDate: -1, startTime: 1, createdAt: -1 });
 
     res.json(records);
   } catch (err) {

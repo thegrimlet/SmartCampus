@@ -5,8 +5,6 @@ import NoticeForm from "../components/NoticeForm";
 import "./dashboard.css";
 import AttendanceForm from "../components/AttendanceForm";
 import AttendanceView from "../components/AttendanceView";
-import UserApproval from "../components/UserApproval";
-import SubjectForm from "../components/SubjectForm";
 import ClassAssignmentPanel from "../components/ClassAssignmentPanel";
 import TimetablePanel from "../components/TimetablePanel";
 import PaymentsPanel from "../components/PaymentsPanel";
@@ -19,7 +17,6 @@ export default function Dashboard() {
   const [stats, setStats] = useState({
     totalStudents: 0,
     totalFaculty: 0,
-    pendingUsers: 0,
     totalSubjects: 0,
     totalNotices: 0,
     totalAttendance: 0,
@@ -119,7 +116,6 @@ export default function Dashboard() {
                 <div className="stats">
                   <div className="stat-card"><span>Students</span><strong>{stats.totalStudents}</strong></div>
                   <div className="stat-card"><span>Faculty</span><strong>{stats.totalFaculty}</strong></div>
-                  <div className="stat-card"><span>Pending</span><strong>{stats.pendingUsers}</strong></div>
                   <div className="stat-card"><span>Subjects</span><strong>{stats.totalSubjects}</strong></div>
                   <div className="stat-card"><span>Notices</span><strong>{stats.totalNotices}</strong></div>
                   <div className="stat-card"><span>Attendance</span><strong>{stats.totalAttendance}</strong></div>
@@ -133,15 +129,7 @@ export default function Dashboard() {
                 <NoticeForm onCreated={handleNoticeCreated} />
               </div>
 
-              <div className="panel panel-half">
-                <UserApproval onChanged={fetchStats} />
-              </div>
-
-              <div className="panel panel-half">
-                <SubjectForm onChanged={fetchStats} />
-              </div>
-
-              <div className="panel panel-half">
+              <div className="panel panel-full">
                 <ClassAssignmentPanel />
               </div>
 

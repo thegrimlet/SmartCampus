@@ -1,12 +1,57 @@
+const crypto = require("crypto");
 const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const { buildVerificationEmail, sendEmail } = require("../services/emailService");
+
+const VERIFICATION_WINDOW_MS = 15 * 60 * 1000;
+
+const hashValue = (value) =>
+  crypto.createHash("sha256").update(value).digest("hex");
+
+const buildVerificationArtifacts = (user) => {
+  const otpCode = String(Math.floor(100000 + Math.random() * 900000));
+  const token = crypto.randomBytes(24).toString("hex");
+  const expiresAt = new Date(Date.now() + VERIFICATION_WINDOW_MS);
+  const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
+  const verificationLink = `${clientUrl}/verify-email?token=${token}`;
+
+  user.emailVerificationOtpHash = hashValue(otpCode);
+  user.emailVerificationTokenHash = hashValue(token);
+  user.emailVerificationExpiresAt = expiresAt;
+
+  return {
+    otpCode,
+    token,
+    verificationLink
+  };
+};
+
+const buildRegistrationResponse = (user, deliveryResult, verificationLink, otpCode) => {
+  const response = {
+    msg: deliveryResult.delivered
+      ? "Registration successful. Check your email for the verification link or OTP."
+      : "Registration successful. Email delivery is not configured, so use the OTP shown below for local testing.",
+    requiresEmailVerification: true,
+    email: user.email
+  };
+
+  if (!deliveryResult.delivered) {
+    response.devVerification = {
+      otp: otpCode,
+      link: verificationLink,
+      reason: deliveryResult.reason
+    };
+  }
+
+  return response;
+};
 
 exports.register = async (req, res) => {
   try {
     const { name, email, password, role = "student" } = req.body;
     const normalizedEmail = email?.trim().toLowerCase();
-    const allowedRoles = ["admin", "faculty", "student"];
+    const allowedRoles = ["faculty", "student"];
 
     if (!name?.trim() || !normalizedEmail || !password) {
       return res.status(400).json({ msg: "Name, email, and password are required" });
@@ -22,22 +67,139 @@ exports.register = async (req, res) => {
     }
 
     const hashed = await bcrypt.hash(password, 10);
-    const hasApprovedAdmin = await User.exists({ role: "admin", status: "approved" });
-    const status = role === "admin" && !hasApprovedAdmin ? "approved" : "pending";
+    const status = "approved";
 
-    await User.create({
+    const user = new User({
       name: name.trim(),
       email: normalizedEmail,
       password: hashed,
       role,
-      status
+      status,
+      emailVerified: false
     });
 
-    res.json({
-      msg: status === "approved"
-        ? "Admin account created. You can log in now."
-        : "Request submitted. Wait for admin approval."
+    const { otpCode, verificationLink } = buildVerificationArtifacts(user);
+    await user.save();
+
+    const emailContent = buildVerificationEmail({
+      name: user.name,
+      verificationLink,
+      otpCode
     });
+    const deliveryResult = await sendEmail({
+      to: user.email,
+      ...emailContent
+    });
+
+    res.json(buildRegistrationResponse(user, deliveryResult, verificationLink, otpCode));
+  } catch (err) {
+    res.status(500).json({ msg: err.message });
+  }
+};
+
+exports.verifyEmailOtp = async (req, res) => {
+  try {
+    const normalizedEmail = req.body.email?.trim().toLowerCase();
+    const otp = req.body.otp?.trim();
+
+    if (!normalizedEmail || !otp) {
+      return res.status(400).json({ msg: "Email and OTP are required" });
+    }
+
+    const user = await User.findOne({ email: normalizedEmail });
+    if (!user) {
+      return res.status(404).json({ msg: "User not found" });
+    }
+
+    if (user.emailVerified) {
+      return res.json({ msg: "Email already verified" });
+    }
+
+    if (!user.emailVerificationExpiresAt || user.emailVerificationExpiresAt < new Date()) {
+      return res.status(400).json({ msg: "Verification code expired. Request a new one." });
+    }
+
+    if (user.emailVerificationOtpHash !== hashValue(otp)) {
+      return res.status(400).json({ msg: "Invalid OTP" });
+    }
+
+    user.emailVerified = true;
+    user.emailVerificationOtpHash = undefined;
+    user.emailVerificationTokenHash = undefined;
+    user.emailVerificationExpiresAt = undefined;
+    await user.save();
+
+    res.json({ msg: "Email verified. You can log in now." });
+  } catch (err) {
+    res.status(500).json({ msg: err.message });
+  }
+};
+
+exports.verifyEmailLink = async (req, res) => {
+  try {
+    const token = req.query.token?.trim();
+    if (!token) {
+      return res.status(400).json({ msg: "Verification token is required" });
+    }
+
+    const user = await User.findOne({
+      emailVerificationTokenHash: hashValue(token)
+    });
+
+    if (!user) {
+      return res.status(400).json({ msg: "Invalid verification link" });
+    }
+
+    if (user.emailVerified) {
+      return res.json({ msg: "Email already verified" });
+    }
+
+    if (!user.emailVerificationExpiresAt || user.emailVerificationExpiresAt < new Date()) {
+      return res.status(400).json({ msg: "Verification link expired. Request a new one." });
+    }
+
+    user.emailVerified = true;
+    user.emailVerificationOtpHash = undefined;
+    user.emailVerificationTokenHash = undefined;
+    user.emailVerificationExpiresAt = undefined;
+    await user.save();
+
+    res.json({ msg: "Email verified. You can log in now." });
+  } catch (err) {
+    res.status(500).json({ msg: err.message });
+  }
+};
+
+exports.resendVerification = async (req, res) => {
+  try {
+    const normalizedEmail = req.body.email?.trim().toLowerCase();
+    if (!normalizedEmail) {
+      return res.status(400).json({ msg: "Email is required" });
+    }
+
+    const user = await User.findOne({ email: normalizedEmail });
+    if (!user) {
+      return res.status(404).json({ msg: "User not found" });
+    }
+
+    if (user.emailVerified) {
+      return res.json({ msg: "Email already verified" });
+    }
+
+    const { otpCode, verificationLink } = buildVerificationArtifacts(user);
+    await user.save();
+
+    const emailContent = buildVerificationEmail({
+      name: user.name,
+      verificationLink,
+      otpCode
+    });
+    const deliveryResult = await sendEmail({
+      to: user.email,
+      ...emailContent
+    });
+
+    res.json(buildRegistrationResponse(user, deliveryResult, verificationLink, otpCode));
   } catch (err) {
     res.status(500).json({ msg: err.message });
   }
@@ -54,9 +216,9 @@ exports.login = async (req, res) => {
     const match = await bcrypt.compare(password, user.password);
     if (!match) return res.status(400).json({ msg: "Wrong password" });
 
-    if (user.status !== "approved") {
+    if (!user.emailVerified) {
       return res.status(403).json({
-        msg: "Your account is not approved yet. Please wait for admin approval."
+        msg: "Please verify your email first. Use the OTP or verification link sent during registration."
       });
     }
 
@@ -68,6 +230,9 @@ exports.login = async (req, res) => {
 
     const safeUser = user.toObject();
     delete safeUser.password;
+    delete safeUser.emailVerificationOtpHash;
+    delete safeUser.emailVerificationTokenHash;
+    delete safeUser.emailVerificationExpiresAt;
 
     res.json({ token, user: safeUser });
   } catch (err) {

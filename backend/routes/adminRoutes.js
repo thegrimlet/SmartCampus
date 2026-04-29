@@ -2,10 +2,10 @@ const router = require("express").Router();
 const User = require("../models/User");
 const Notice = require("../models/Notice");
 const Attendance = require("../models/Attendance");
-const Subject = require("../models/Subject");
 const Payment = require("../models/Payment");
 const Timetable = require("../models/Timetable");
 const Result = require("../models/Result");
+const ClassAssignment = require("../models/ClassAssignment");
 const auth = require("../middleware/authMiddleware");
 
 router.get("/stats", auth, async (req, res) => {
@@ -17,8 +17,7 @@ router.get("/stats", auth, async (req, res) => {
     const [
       totalStudents,
       totalFaculty,
-      pendingUsers,
-      totalSubjects,
+      classAssignments,
       totalNotices,
       totalAttendance,
       totalPayments,
@@ -26,10 +25,9 @@ router.get("/stats", auth, async (req, res) => {
       timetableEntries,
       totalResults
     ] = await Promise.all([
-      User.countDocuments({ role: "student", status: "approved" }),
-      User.countDocuments({ role: "faculty", status: "approved" }),
-      User.countDocuments({ status: "pending" }),
-      Subject.countDocuments(),
+      User.countDocuments({ role: "student", emailVerified: true }),
+      User.countDocuments({ role: "faculty", emailVerified: true }),
+      ClassAssignment.find().select("subjects"),
       Notice.countDocuments(),
       Attendance.countDocuments(),
       Payment.countDocuments(),
@@ -38,10 +36,13 @@ router.get("/stats", auth, async (req, res) => {
       Result.countDocuments()
     ]);
 
+    const totalSubjects = new Set(
+      classAssignments.flatMap((assignment) => assignment.subjects || [])
+    ).size;
+
     res.json({
       totalStudents,
       totalFaculty,
-      pendingUsers,
       totalSubjects,
       totalNotices,
       totalAttendance,

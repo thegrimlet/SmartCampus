@@ -11,8 +11,13 @@ const messageSchema = new mongoose.Schema({
     ref: "User",
     required: true
   },
+  conversationId: { type: String, required: true, trim: true, index: true },
   subject: { type: String, trim: true, default: "Campus message" },
   body: { type: String, required: true, trim: true },
+  replyTo: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Message"
+  },
   readAt: Date
 }, { timestamps: true });
 
