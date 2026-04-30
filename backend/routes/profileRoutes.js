@@ -29,13 +29,17 @@ router.get("/me", auth, async (req, res) => {
       .populate("user", "name email role status");
 
     if (req.user.role === "student" && profile?.assignedClass) {
-      const classAssignment = await ClassAssignment.findOne({ className: profile.assignedClass });
+      const classAssignment = await ClassAssignment.findOne({
+        className: profile.assignedClass,
+        batch: profile.assignedBatch || "Morning"
+      });
       if (classAssignment) {
         profile = {
           ...profile.toObject(),
           course: classAssignment.course,
           semester: classAssignment.semester,
           department: classAssignment.department,
+          assignedBatch: classAssignment.batch,
           classTeacher: classAssignment.classTeacher,
           assignedSubjects: classAssignment.subjects
         };
@@ -93,6 +97,7 @@ router.put("/user/:userId", auth, async (req, res) => {
     if (req.user.role === "admin") {
       profileUpdate.rollNumber = req.body.rollNumber;
       profileUpdate.assignedClass = req.body.assignedClass;
+      profileUpdate.assignedBatch = req.body.assignedBatch;
 
       if (user.role === "faculty") {
         profileUpdate.assignedSubjects = req.body.assignedSubjects || [];

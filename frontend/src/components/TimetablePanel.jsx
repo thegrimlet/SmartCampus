@@ -21,6 +21,13 @@ const subjectStyle = (subject) => {
   };
 };
 
+const semesterOptionsFor = (course) => {
+  if (!course) return [];
+  return Array.from({ length: Number(course.totalSemYear || 0) }, (_, index) =>
+    `${course.semYearType} ${index + 1}`
+  );
+};
+
 function TimetableBoard({ entries, title, subtitle }) {
   const entryMap = useMemo(() => {
     const map = new Map();
@@ -72,14 +79,13 @@ function TimetableBoard({ entries, title, subtitle }) {
 
 export default function TimetablePanel({ user }) {
   const [entries, setEntries] = useState([]);
-  const [classAssignments, setClassAssignments] = useState([]);
+  const [courses, setCourses] = useState([]);
   const [faculty, setFaculty] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [scope, setScope] = useState({
+    courseId: "",
     course: "",
-    semester: "",
-    className: "",
-    classTeacher: ""
+    semester: ""
   });
   const [selectedSlot, setSelectedSlot] = useState({
     day: "Monday",
@@ -93,15 +99,11 @@ export default function TimetablePanel({ user }) {
   });
   const [message, setMessage] = useState("");
 
-  const classOptions = useMemo(() => {
-    return classAssignments.map((item) => ({
-      course: item.course,
-      semester: item.semester,
-      className: item.className,
-      classTeacher: item.classTeacher,
-      subjects: item.subjects || []
-    }));
-  }, [classAssignments]);
+  const selectedCourse = useMemo(
+    () => courses.find((course) => course._id === scope.courseId),
+    [courses, scope.courseId]
+  );
+  const semesterOptions = useMemo(() => semesterOptionsFor(selectedCourse), [selectedCourse]);
 
   const currentEntry = useMemo(
     () => entries.find((entry) =>
@@ -112,17 +114,16 @@ export default function TimetablePanel({ user }) {
     [entries, selectedSlot]
   );
 
-  const buildEditorState = (entry) => ({
-    subject: entry?.subject || subjects[0]?.name || "",
-    faculty: entry?.faculty?._id || faculty[0]?._id || "",
+  const buildEditorState = (entry, nextSubjects = subjects, nextFaculty = faculty) => ({
+    subject: entry?.subject || nextSubjects[0]?.name || "",
+    faculty: entry?.faculty?._id || nextFaculty[0]?._id || "",
     room: entry?.room || ""
   });
 
-  const fetchEntries = async (nextScope = scope) => {
+  const fetchEntries = async (nextScope = scope, nextSubjects = subjects, nextFaculty = faculty) => {
     const params = new URLSearchParams();
     if (nextScope.course) params.set("course", nextScope.course);
     if (nextScope.semester) params.set("semester", nextScope.semester);
-    if (nextScope.className) params.set("className", nextScope.className);
     const res = await API.get(`/timetable${params.toString() ? `?${params.toString()}` : ""}`);
     setEntries(res.data);
     const selectedEntry = res.data.find((entry) =>
@@ -130,38 +131,43 @@ export default function TimetablePanel({ user }) {
       entry.startTime === selectedSlot.startTime &&
       entry.endTime === selectedSlot.endTime
     );
-    setEditor(buildEditorState(selectedEntry));
+    setEditor(buildEditorState(selectedEntry, nextSubjects, nextFaculty));
+  };
+
+  const fetchSubjects = async (courseId, semester) => {
+    if (!courseId || !semester) {
+      setSubjects([]);
+      return [];
+    }
+
+    const params = new URLSearchParams({ course: courseId, semester });
+    const res = await API.get(`/subjects?${params.toString()}`);
+    setSubjects(res.data);
+    return res.data;
   };
 
   useEffect(() => {
     const load = async () => {
       if (user.role === "admin") {
-        const [facultyRes, subjectRes, profileRes] = await Promise.all([
+        const [facultyRes, coursesRes] = await Promise.all([
           API.get("/users/faculty"),
-          API.get("/subjects"),
-          API.get("/class-assignments")
+          API.get("/courses")
         ]);
 
         setFaculty(facultyRes.data);
-        setSubjects(subjectRes.data);
-        setClassAssignments(profileRes.data);
+        setCourses(coursesRes.data);
 
-        const first = profileRes.data[0];
-        if (first) {
-          const classSubjects = (first.subjects || []).map((name, index) => ({ _id: `${index}-${name}`, name }));
-          if (classSubjects.length) {
-            setSubjects(classSubjects);
-            setEditor((current) => ({ ...current, subject: classSubjects[0].name }));
-          }
-
+        const firstCourse = coursesRes.data[0];
+        if (firstCourse) {
+          const firstSemester = semesterOptionsFor(firstCourse)[0] || "";
           const nextScope = {
-            course: first.course,
-            semester: first.semester,
-            className: first.className,
-            classTeacher: first.classTeacher || ""
+            courseId: firstCourse._id,
+            course: firstCourse.courseCode,
+            semester: firstSemester
           };
           setScope(nextScope);
-          await fetchEntries(nextScope);
+          const nextSubjects = await fetchSubjects(firstCourse._id, firstSemester);
+          await fetchEntries(nextScope, nextSubjects, facultyRes.data);
         } else {
           await fetchEntries();
         }
@@ -174,17 +180,25 @@ export default function TimetablePanel({ user }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user.role]);
 
-  const chooseClass = async (value) => {
-    const selected = classOptions.find((item) => `${item.course}|${item.semester}|${item.className}` === value);
-    const nextScope = selected
-      ? { ...selected, classTeacher: selected.classTeacher || "" }
-      : { ...scope, className: value };
+  const chooseCourse = async (courseId) => {
+    const course = courses.find((item) => item._id === courseId);
+    const nextSemester = semesterOptionsFor(course)[0] || "";
+    const nextScope = {
+      courseId,
+      course: course?.courseCode || "",
+      semester: nextSemester
+    };
+
     setScope(nextScope);
-    if (selected?.subjects?.length) {
-      setSubjects(selected.subjects.map((name, index) => ({ _id: `${index}-${name}`, name })));
-      setEditor((current) => ({ ...current, subject: selected.subjects[0] || current.subject }));
-    }
-    await fetchEntries(nextScope);
+    const nextSubjects = await fetchSubjects(courseId, nextSemester);
+    await fetchEntries(nextScope, nextSubjects);
+  };
+
+  const chooseSemester = async (semester) => {
+    const nextScope = { ...scope, semester };
+    setScope(nextScope);
+    const nextSubjects = await fetchSubjects(scope.courseId, semester);
+    await fetchEntries(nextScope, nextSubjects);
   };
 
   const chooseSlot = (day, startTime, endTime) => {
@@ -200,9 +214,15 @@ export default function TimetablePanel({ user }) {
 
   const saveSlot = async () => {
     setMessage("");
+    if (!scope.course || !scope.semester) {
+      setMessage("Select a course and semester first");
+      return;
+    }
+
     try {
       await API.put("/timetable/slot", {
-        ...scope,
+        course: scope.course,
+        semester: scope.semester,
         ...selectedSlot,
         ...editor
       });
@@ -221,65 +241,52 @@ export default function TimetablePanel({ user }) {
   };
 
   if (user.role !== "admin") {
-    const title = entries[0]
-      ? `Class Schedule for ${entries[0].course} - Semester ${entries[0].semester} (${entries[0].className})`
+    const batchLabel = entries[0]?.batch ? ` - ${entries[0].batch} Batch` : "";
+    const boardTitle = entries[0]
+      ? `Class Schedule for ${entries[0].course} - ${entries[0].semester}${entries[0].className ? ` (${entries[0].className}${batchLabel})` : ""}`
       : "Class Schedule";
     const subtitle = entries[0]
       ? `Room No. ${entries[0].room || "TBA"}, Class Teacher: ${entries[0].classTeacher || entries[0].faculty?.name || "TBA"}`
       : "No timetable entries available";
 
-    return <TimetableBoard entries={entries} title={title} subtitle={subtitle} />;
+    return <TimetableBoard entries={entries} title={boardTitle} subtitle={subtitle} />;
   }
 
   return (
     <div className="stack">
       <h3>Timetable Builder</h3>
 
-      <div className="panel-lite timetable-toolbar">
+      <div className="panel-lite timetable-toolbar compact">
         <label className="field-stack">
-          <span>Saved Classes</span>
-          <select
-            className="input"
-            value={`${scope.course}|${scope.semester}|${scope.className}`}
-            onChange={(e) => chooseClass(e.target.value)}
-          >
-            <option value="">Select class schedule</option>
-            {classOptions.map((item) => (
-              <option key={`${item.course}|${item.semester}|${item.className}`} value={`${item.course}|${item.semester}|${item.className}`}>
-                {item.course} - Sem {item.semester} - {item.className}
+          <span>Course</span>
+          <select className="input" value={scope.courseId} onChange={(e) => chooseCourse(e.target.value)}>
+            <option value="">Select course</option>
+            {courses.map((course) => (
+              <option key={course._id} value={course._id}>
+                {course.courseCode} - {course.courseName}
               </option>
             ))}
           </select>
         </label>
 
         <label className="field-stack">
-          <span>Course</span>
-          <input className="input" placeholder="Course" value={scope.course} onChange={(e) => setScope({ ...scope, course: e.target.value })} />
-        </label>
-
-        <label className="field-stack">
           <span>Semester</span>
-          <input className="input" placeholder="Semester" value={scope.semester} onChange={(e) => setScope({ ...scope, semester: e.target.value })} />
-        </label>
-
-        <label className="field-stack">
-          <span>Class</span>
-          <input className="input" placeholder="Class" value={scope.className} onChange={(e) => setScope({ ...scope, className: e.target.value })} />
-        </label>
-
-        <label className="field-stack">
-          <span>Class Teacher</span>
-          <input className="input" placeholder="Class teacher" value={scope.classTeacher} onChange={(e) => setScope({ ...scope, classTeacher: e.target.value })} />
+          <select className="input" value={scope.semester} onChange={(e) => chooseSemester(e.target.value)}>
+            <option value="">Select semester</option>
+            {semesterOptions.map((semester) => (
+              <option key={semester} value={semester}>{semester}</option>
+            ))}
+          </select>
         </label>
       </div>
 
       <div className="timetable-admin-layout">
         <div className="schedule-scroll">
           <div className="schedule-board-title schedule-board-title-admin">
-            CLASS SCHEDULE for {scope.course || "Course"}-{scope.semester || "Sem"} ({scope.className || "Class"})
+            CLASS SCHEDULE for {scope.course || "Course"} - {scope.semester || "Semester"}
           </div>
           <div className="schedule-board-subtitle schedule-board-subtitle-admin">
-            Room No. - {currentEntry?.room || "TBA"}, Class Teacher: {scope.classTeacher || "TBA"}
+            {selectedCourse?.courseName || "Select a course"}
           </div>
           <div className="schedule-grid admin-grid">
             <div className="schedule-grid-head schedule-day-col">Day/Timing</div>
@@ -323,7 +330,7 @@ export default function TimetablePanel({ user }) {
             <select className="input" value={editor.subject} onChange={(e) => setEditor({ ...editor, subject: e.target.value })}>
               <option value="">Select subject</option>
               {subjects.map((subject) => (
-                <option key={subject._id} value={subject.name}>{subject.name}</option>
+                <option key={subject._id} value={subject.name}>{subject.subjectCode ? `${subject.subjectCode} - ${subject.name}` : subject.name}</option>
               ))}
             </select>
           </label>

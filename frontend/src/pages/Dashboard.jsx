@@ -5,7 +5,10 @@ import NoticeForm from "../components/NoticeForm";
 import "./dashboard.css";
 import AttendanceForm from "../components/AttendanceForm";
 import AttendanceView from "../components/AttendanceView";
-import ClassAssignmentPanel from "../components/ClassAssignmentPanel";
+import CoursesPanel from "../components/CoursesPanel";
+import CourseSubjectsPanel from "../components/CourseSubjectsPanel";
+import StudentsPanel from "../components/StudentsPanel";
+import FacultiesPanel from "../components/FacultiesPanel";
 import TimetablePanel from "../components/TimetablePanel";
 import PaymentsPanel from "../components/PaymentsPanel";
 import ResultsPanel from "../components/ResultsPanel";
@@ -17,6 +20,7 @@ export default function Dashboard() {
   const [stats, setStats] = useState({
     totalStudents: 0,
     totalFaculty: 0,
+    totalCourses: 0,
     totalSubjects: 0,
     totalNotices: 0,
     totalAttendance: 0,
@@ -116,6 +120,7 @@ export default function Dashboard() {
                 <div className="stats">
                   <div className="stat-card"><span>Students</span><strong>{stats.totalStudents}</strong></div>
                   <div className="stat-card"><span>Faculty</span><strong>{stats.totalFaculty}</strong></div>
+                  <div className="stat-card"><span>Courses</span><strong>{stats.totalCourses}</strong></div>
                   <div className="stat-card"><span>Subjects</span><strong>{stats.totalSubjects}</strong></div>
                   <div className="stat-card"><span>Notices</span><strong>{stats.totalNotices}</strong></div>
                   <div className="stat-card"><span>Attendance</span><strong>{stats.totalAttendance}</strong></div>
@@ -130,7 +135,19 @@ export default function Dashboard() {
               </div>
 
               <div className="panel panel-full">
-                <ClassAssignmentPanel />
+                <CoursesPanel onChanged={fetchStats} />
+              </div>
+
+              <div className="panel panel-full">
+                <CourseSubjectsPanel onChanged={fetchStats} />
+              </div>
+
+              <div className="panel panel-full">
+                <StudentsPanel onChanged={fetchStats} />
+              </div>
+
+              <div className="panel panel-full">
+                <FacultiesPanel onChanged={fetchStats} />
               </div>
 
               <div className="panel panel-full">

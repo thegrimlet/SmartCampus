@@ -5,7 +5,8 @@ const Attendance = require("../models/Attendance");
 const Payment = require("../models/Payment");
 const Timetable = require("../models/Timetable");
 const Result = require("../models/Result");
-const ClassAssignment = require("../models/ClassAssignment");
+const Course = require("../models/Course");
+const Subject = require("../models/Subject");
 const auth = require("../middleware/authMiddleware");
 
 router.get("/stats", auth, async (req, res) => {
@@ -17,7 +18,8 @@ router.get("/stats", auth, async (req, res) => {
     const [
       totalStudents,
       totalFaculty,
-      classAssignments,
+      totalSubjects,
+      totalCourses,
       totalNotices,
       totalAttendance,
       totalPayments,
@@ -27,7 +29,8 @@ router.get("/stats", auth, async (req, res) => {
     ] = await Promise.all([
       User.countDocuments({ role: "student", emailVerified: true }),
       User.countDocuments({ role: "faculty", emailVerified: true }),
-      ClassAssignment.find().select("subjects"),
+      Subject.countDocuments(),
+      Course.countDocuments(),
       Notice.countDocuments(),
       Attendance.countDocuments(),
       Payment.countDocuments(),
@@ -36,14 +39,11 @@ router.get("/stats", auth, async (req, res) => {
       Result.countDocuments()
     ]);
 
-    const totalSubjects = new Set(
-      classAssignments.flatMap((assignment) => assignment.subjects || [])
-    ).size;
-
     res.json({
       totalStudents,
       totalFaculty,
       totalSubjects,
+      totalCourses,
       totalNotices,
       totalAttendance,
       totalPayments,

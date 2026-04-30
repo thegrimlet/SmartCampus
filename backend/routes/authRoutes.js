@@ -2,15 +2,15 @@ const router = require("express").Router();
 const {
   register,
   login,
-  verifyEmailOtp,
-  verifyEmailLink,
-  resendVerification
+  recoverId,
+  requestPasswordReset,
+  resetPassword
 } = require("../controllers/authController");
 
 router.post("/register", register);
 router.post("/login", login);
-router.post("/verify-email-otp", verifyEmailOtp);
-router.get("/verify-email", verifyEmailLink);
-router.post("/resend-verification", resendVerification);
+router.post("/recover-id", recoverId);
+router.post("/request-password-reset", requestPasswordReset);
+router.post("/reset-password", resetPassword);
 
 module.exports = router;

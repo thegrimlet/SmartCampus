@@ -7,7 +7,7 @@ export default function AttendanceForm() {
   const [date, setDate] = useState(todayValue());
   const [classes, setClasses] = useState([]);
   const [allLectures, setAllLectures] = useState([]);
-  const [className, setClassName] = useState("");
+  const [classKey, setClassKey] = useState("");
   const [lectureKey, setLectureKey] = useState("");
   const [students, setStudents] = useState([]);
   const [attendance, setAttendance] = useState({});
@@ -15,24 +15,24 @@ export default function AttendanceForm() {
   const [message, setMessage] = useState("");
 
   const lectures = useMemo(
-    () => allLectures.filter((lecture) => lecture.className === className),
-    [allLectures, className]
+    () => allLectures.filter((lecture) => `${lecture.className}|${lecture.batch || "Morning"}` === classKey),
+    [allLectures, classKey]
   );
   const selectedLecture = useMemo(
-    () => lectures.find((lecture) => `${lecture.className}|${lecture.startTime}|${lecture.endTime}` === lectureKey),
+    () => lectures.find((lecture) => `${lecture.className}|${lecture.batch || "Morning"}|${lecture.startTime}|${lecture.endTime}` === lectureKey),
     [lectureKey, lectures]
   );
 
   const loadLectures = async (nextDate, preferredClass = "") => {
     const res = await API.get(`/attendance/faculty/lectures?date=${encodeURIComponent(nextDate)}`);
     const classOptions = res.data.classes || [];
-    const nextClass = preferredClass || classOptions[0] || "";
-    const lectureOptions = (res.data.lectures || []).filter((lecture) => lecture.className === nextClass);
+    const nextClass = preferredClass || classOptions[0]?.key || "";
+    const lectureOptions = (res.data.lectures || []).filter((lecture) => `${lecture.className}|${lecture.batch || "Morning"}` === nextClass);
 
     setClasses(classOptions);
     setAllLectures(res.data.lectures || []);
-    setClassName(nextClass);
-    setLectureKey(lectureOptions[0] ? `${lectureOptions[0].className}|${lectureOptions[0].startTime}|${lectureOptions[0].endTime}` : "");
+    setClassKey(nextClass);
+    setLectureKey(lectureOptions[0] ? `${lectureOptions[0].className}|${lectureOptions[0].batch || "Morning"}|${lectureOptions[0].startTime}|${lectureOptions[0].endTime}` : "");
   };
 
   useEffect(() => {
@@ -51,6 +51,7 @@ export default function AttendanceForm() {
 
       const res = await API.get(
         `/attendance/faculty/session?className=${encodeURIComponent(selectedLecture.className)}&date=${encodeURIComponent(date)}&startTime=${encodeURIComponent(selectedLecture.startTime)}&endTime=${encodeURIComponent(selectedLecture.endTime)}`
+        + `&batch=${encodeURIComponent(selectedLecture.batch || "Morning")}`
       );
 
       setSessionInfo({
@@ -77,9 +78,9 @@ export default function AttendanceForm() {
   };
 
   const handleClassChange = (nextClass) => {
-    const lectureOptions = allLectures.filter((lecture) => lecture.className === nextClass);
-    setClassName(nextClass);
-    setLectureKey(lectureOptions[0] ? `${lectureOptions[0].className}|${lectureOptions[0].startTime}|${lectureOptions[0].endTime}` : "");
+    const lectureOptions = allLectures.filter((lecture) => `${lecture.className}|${lecture.batch || "Morning"}` === nextClass);
+    setClassKey(nextClass);
+    setLectureKey(lectureOptions[0] ? `${lectureOptions[0].className}|${lectureOptions[0].batch || "Morning"}|${lectureOptions[0].startTime}|${lectureOptions[0].endTime}` : "");
   };
 
   const handleSubmit = async (event) => {
@@ -99,13 +100,14 @@ export default function AttendanceForm() {
     try {
       const res = await API.put("/attendance/faculty/session", {
         className: selectedLecture.className,
+        batch: selectedLecture.batch || "Morning",
         date,
         startTime: selectedLecture.startTime,
         endTime: selectedLecture.endTime,
         records
       });
       setMessage(`${res.data.created} created, ${res.data.updated} updated`);
-      await loadLectures(date, className);
+      await loadLectures(date, classKey);
     } catch (err) {
       setMessage(err.response?.data?.msg || "Error saving attendance");
     }
@@ -128,10 +130,10 @@ export default function AttendanceForm() {
 
       <label className="field-stack">
         <span>Class</span>
-        <select className="input" value={className} onChange={(e) => handleClassChange(e.target.value)}>
+        <select className="input" value={classKey} onChange={(e) => handleClassChange(e.target.value)}>
           <option value="">Select class</option>
           {classes.map((item) => (
-            <option key={item} value={item}>{item}</option>
+            <option key={item.key} value={item.key}>{item.label}</option>
           ))}
         </select>
       </label>
@@ -141,10 +143,10 @@ export default function AttendanceForm() {
         <select className="input" value={lectureKey} onChange={(e) => setLectureKey(e.target.value)}>
           <option value="">Select lecture</option>
           {lectures.map((lecture) => {
-            const key = `${lecture.className}|${lecture.startTime}|${lecture.endTime}`;
+            const key = `${lecture.className}|${lecture.batch || "Morning"}|${lecture.startTime}|${lecture.endTime}`;
             return (
               <option key={key} value={key}>
-                {lecture.startTime}-{lecture.endTime} | {lecture.subject} {lecture.room ? `| ${lecture.room}` : ""}
+                {lecture.startTime}-{lecture.endTime} | {lecture.subject} | {lecture.batch || "Morning"} {lecture.room ? `| ${lecture.room}` : ""}
               </option>
             );
           })}
@@ -156,6 +158,7 @@ export default function AttendanceForm() {
           <strong>{sessionInfo.subject}</strong>
           <p className="muted">
             {sessionInfo.className} | {sessionInfo.day} | {sessionInfo.startTime}-{sessionInfo.endTime}
+            {sessionInfo.batch ? ` | ${sessionInfo.batch}` : ""}
             {sessionInfo.room ? ` | ${sessionInfo.room}` : ""}
           </p>
           <p className="muted">

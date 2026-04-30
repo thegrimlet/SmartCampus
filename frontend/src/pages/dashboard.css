@@ -285,6 +285,71 @@ h1 {
   border-color: #8db6f5;
 }
 
+.catalog-hero {
+  min-height: 96px;
+  background: #25afa8;
+  color: #ffffff;
+  padding: 24px;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-end;
+}
+
+.catalog-hero.compact {
+  min-height: 64px;
+  align-items: center;
+  justify-content: center;
+}
+
+.catalog-hero h3 {
+  font-size: 1.8rem;
+  margin: 0;
+}
+
+.catalog-modal {
+  border: 1px solid #cfd8e3;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 18px;
+  box-shadow: 0 20px 48px rgba(19, 32, 51, 0.18);
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #ffffff;
+  min-width: 820px;
+}
+
+.admin-table th {
+  background: #25afa8;
+  color: #ffffff;
+  font-size: 1rem;
+  padding: 10px;
+}
+
+.admin-table td {
+  border: 1px solid #cfd8e3;
+  padding: 9px;
+  vertical-align: middle;
+}
+
+.course-filter-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 16px;
+  align-items: end;
+}
+
+.align-end {
+  align-self: end;
+}
+
 .input,
 input,
 textarea,
@@ -343,6 +408,22 @@ textarea {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.auth-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.linklike {
+  border: 0;
+  background: transparent;
+  color: #1d64d8;
+  cursor: pointer;
+  font-weight: 700;
+  padding: 0;
+  text-align: left;
 }
 
 .notice-card,
@@ -702,6 +783,10 @@ textarea {
   gap: 10px;
 }
 
+.timetable-toolbar.compact {
+  grid-template-columns: repeat(2, minmax(220px, 1fr));
+}
+
 .timetable-admin-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 320px;
@@ -886,7 +971,8 @@ textarea {
   .timetable-toolbar,
   .timetable-admin-layout,
   .class-admin-grid,
-  .message-layout {
+  .message-layout,
+  .course-filter-grid {
     grid-template-columns: 1fr;
   }
 

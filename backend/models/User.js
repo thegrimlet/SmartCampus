@@ -3,11 +3,14 @@ const mongoose = require("mongoose");
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
   email: { type: String, unique: true },
+  institutionalId: { type: String, unique: true, sparse: true, trim: true },
   password: { type: String, required: true },
   emailVerified: { type: Boolean, default: false },
   emailVerificationOtpHash: { type: String },
   emailVerificationTokenHash: { type: String },
   emailVerificationExpiresAt: { type: Date },
+  passwordResetOtpHash: { type: String },
+  passwordResetExpiresAt: { type: Date },
 
   role: {
     type: String,

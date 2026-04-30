@@ -16,9 +16,11 @@ const ensureAdmin = (req, res) => {
 const normalizeSubjects = (subjects = []) =>
   subjects.map((subject) => subject.trim()).filter(Boolean);
 
+const getBatch = (req) => (req.query.batch || req.body.batch || "Morning").trim();
+
 router.get("/", auth, async (req, res) => {
   try {
-    const assignments = await ClassAssignment.find().sort({ className: 1 });
+    const assignments = await ClassAssignment.find().sort({ className: 1, batch: 1 });
     res.json(assignments);
   } catch (err) {
     res.status(500).json({ msg: err.message });
@@ -27,7 +29,10 @@ router.get("/", auth, async (req, res) => {
 
 router.get("/:className", auth, async (req, res) => {
   try {
-    const assignment = await ClassAssignment.findOne({ className: req.params.className });
+    const assignment = await ClassAssignment.findOne({
+      className: req.params.className,
+      batch: getBatch(req)
+    });
     res.json(assignment);
   } catch (err) {
     res.status(500).json({ msg: err.message });
@@ -41,14 +46,16 @@ router.put("/:className", auth, async (req, res) => {
     }
 
     const className = req.params.className.trim();
+    const batch = getBatch(req);
     if (!className) {
       return res.status(400).json({ msg: "Class name is required" });
     }
 
     const assignment = await ClassAssignment.findOneAndUpdate(
-      { className },
+      { className, batch },
       {
         className,
+        batch,
         course: req.body.course,
         semester: req.body.semester,
         department: req.body.department,
@@ -70,14 +77,18 @@ router.delete("/:className", auth, async (req, res) => {
       return;
     }
 
-    const assignment = await ClassAssignment.findOneAndDelete({ className: req.params.className });
+    const batch = getBatch(req);
+    const assignment = await ClassAssignment.findOneAndDelete({
+      className: req.params.className,
+      batch
+    });
     if (!assignment) {
       return res.status(404).json({ msg: "Class assignment not found" });
     }
 
     await Profile.updateMany(
-      { assignedClass: req.params.className },
-      { $set: { assignedClass: "" }, $unset: { rollNumber: "" } }
+      { assignedClass: req.params.className, assignedBatch: batch },
+      { $set: { assignedClass: "", assignedBatch: "" }, $unset: { rollNumber: "" } }
     );
 
     res.json({ msg: "Class assignment deleted" });
@@ -92,12 +103,14 @@ router.get("/:className/roster", auth, async (req, res) => {
       return res.status(403).json({ msg: "Access denied" });
     }
 
+    const batch = getBatch(req);
     const [students, facultyProfiles] = await Promise.all([
-      Profile.find({ assignedClass: req.params.className })
+      Profile.find({ assignedClass: req.params.className, assignedBatch: batch })
         .populate("user", "name email role status")
         .sort({ rollNumber: 1, updatedAt: -1 }),
       Profile.find({
         assignedClass: req.params.className,
+        assignedBatch: batch,
         assignedSubjects: { $exists: true, $ne: [] }
       }).populate("user", "name email role status")
     ]);
@@ -118,7 +131,8 @@ router.put("/:className/roster", auth, async (req, res) => {
     }
 
     const className = req.params.className.trim();
-    const assignment = await ClassAssignment.findOne({ className });
+    const batch = getBatch(req);
+    const assignment = await ClassAssignment.findOne({ className, batch });
     if (!assignment) {
       return res.status(404).json({ msg: "Class assignment not found" });
     }
@@ -139,7 +153,7 @@ router.put("/:className/roster", auth, async (req, res) => {
       .map((entry) => (entry.rollNumber || "").trim())
       .filter(Boolean);
     if (new Set(rollNumbers).size !== rollNumbers.length) {
-      return res.status(400).json({ msg: "Roll numbers must be unique within a class" });
+      return res.status(400).json({ msg: "Roll numbers must be unique within a class batch" });
     }
 
     await Promise.all(
@@ -148,6 +162,7 @@ router.put("/:className/roster", auth, async (req, res) => {
           { user: entry.userId },
           {
             assignedClass: className,
+            assignedBatch: batch,
             rollNumber: (entry.rollNumber || "").trim()
           },
           { upsert: true, new: true, runValidators: true }
@@ -159,12 +174,13 @@ router.put("/:className/roster", auth, async (req, res) => {
     await Profile.updateMany(
       {
         assignedClass: className,
+        assignedBatch: batch,
         user: { $nin: keepIds }
       },
-      { $set: { assignedClass: "" }, $unset: { rollNumber: "" } }
+      { $set: { assignedClass: "", assignedBatch: "" }, $unset: { rollNumber: "" } }
     );
 
-    const studentsWithProfiles = await Profile.find({ assignedClass: className })
+    const studentsWithProfiles = await Profile.find({ assignedClass: className, assignedBatch: batch })
       .populate("user", "name email role status")
       .sort({ rollNumber: 1, updatedAt: -1 });
 
@@ -184,7 +200,8 @@ router.put("/:className/faculty/:facultyId", auth, async (req, res) => {
     }
 
     const className = req.params.className.trim();
-    const assignment = await ClassAssignment.findOne({ className });
+    const batch = getBatch(req);
+    const assignment = await ClassAssignment.findOne({ className, batch });
     if (!assignment) {
       return res.status(404).json({ msg: "Class assignment not found" });
     }
@@ -202,13 +219,14 @@ router.put("/:className/faculty/:facultyId", auth, async (req, res) => {
     const subjects = normalizeSubjects(req.body.subjects || []);
     const invalidSubject = subjects.find((subject) => !assignment.subjects.includes(subject));
     if (invalidSubject) {
-      return res.status(400).json({ msg: `Subject "${invalidSubject}" is not part of ${className}` });
+      return res.status(400).json({ msg: `Subject "${invalidSubject}" is not part of ${className} (${batch})` });
     }
 
     const profile = await Profile.findOneAndUpdate(
       { user: faculty._id },
       {
         assignedClass: className,
+        assignedBatch: batch,
         assignedSubjects: subjects
       },
       { upsert: true, new: true, runValidators: true }
@@ -240,8 +258,9 @@ router.delete("/:className/faculty/:facultyId", auth, async (req, res) => {
     }
 
     const className = req.params.className.trim();
+    const batch = getBatch(req);
     const [assignment, faculty] = await Promise.all([
-      ClassAssignment.findOne({ className }),
+      ClassAssignment.findOne({ className, batch }),
       User.findOne({
         _id: req.params.facultyId,
         role: "faculty",
@@ -258,9 +277,10 @@ router.delete("/:className/faculty/:facultyId", auth, async (req, res) => {
     }
 
     await Profile.findOneAndUpdate(
-      { user: faculty._id, assignedClass: className },
+      { user: faculty._id, assignedClass: className, assignedBatch: batch },
       {
         assignedClass: "",
+        assignedBatch: "",
         assignedSubjects: []
       },
       { new: true }

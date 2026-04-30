@@ -15,6 +15,7 @@ const attendanceSchema = new mongoose.Schema({
   },
   subject: String,
   className: String,
+  batch: String,
   lectureDate: Date,
   day: String,
   startTime: String,
@@ -33,6 +34,7 @@ attendanceSchema.index(
   {
     studentId: 1,
     className: 1,
+    batch: 1,
     subject: 1,
     lectureDate: 1,
     startTime: 1,

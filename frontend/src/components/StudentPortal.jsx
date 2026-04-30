@@ -123,7 +123,7 @@ export default function StudentPortal({ user, onLogout }) {
       timetable.map((entry) => [scheduleKey(entry.day, entry.startTime, entry.endTime), entry])
     );
     const title = timetable[0]
-      ? `Class Schedule for ${timetable[0].course} - Semester ${timetable[0].semester} (${timetable[0].className})`
+      ? `Class Schedule for ${timetable[0].course} - Semester ${timetable[0].semester} (${timetable[0].className}${timetable[0].batch ? ` - ${timetable[0].batch} Batch` : ""})`
       : "Class Schedule";
     const subtitle = timetable[0]
       ? `Room No. ${timetable[0].room || "TBA"}, Class Teacher: ${timetable[0].classTeacher || timetable[0].faculty?.name || "TBA"}`
@@ -288,7 +288,7 @@ export default function StudentPortal({ user, onLogout }) {
             <h2>Profile Snapshot</h2>
           </div>
           <div className="student-panel-body">
-            <div className="student-message-row"><strong>Class</strong><span>{profile?.assignedClass || "--"}</span></div>
+            <div className="student-message-row"><strong>Class</strong><span>{profile?.assignedClass ? `${profile.assignedClass}${profile?.assignedBatch ? ` (${profile.assignedBatch})` : ""}` : "--"}</span></div>
             <div className="student-message-row"><strong>Department</strong><span>{profile?.department || "--"}</span></div>
             <div className="student-message-row"><strong>Roll Number</strong><span>{profile?.rollNumber || "--"}</span></div>
             <div className="student-message-row"><strong>Phone</strong><span>{profile?.phone || "--"}</span></div>
@@ -395,7 +395,7 @@ export default function StudentPortal({ user, onLogout }) {
               <div className="student-panel-body">
                 <div className="student-message-row"><strong>Course</strong><span>{profile?.course || "--"}</span></div>
                 <div className="student-message-row"><strong>Semester</strong><span>{profile?.semester || "--"}</span></div>
-                <div className="student-message-row"><strong>Class</strong><span>{profile?.assignedClass || "--"}</span></div>
+                <div className="student-message-row"><strong>Class</strong><span>{profile?.assignedClass ? `${profile.assignedClass}${profile?.assignedBatch ? ` (${profile.assignedBatch})` : ""}` : "--"}</span></div>
                 <div className="student-message-row"><strong>Department</strong><span>{profile?.department || "--"}</span></div>
                 <div className="student-message-row"><strong>Roll Number</strong><span>{profile?.rollNumber || "--"}</span></div>
                 <div className="student-message-row"><strong>Phone</strong><span>{profile?.phone || "--"}</span></div>

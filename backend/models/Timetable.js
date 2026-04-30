@@ -3,7 +3,8 @@ const mongoose = require("mongoose");
 const timetableSchema = new mongoose.Schema({
   course: { type: String, required: true, trim: true },
   semester: { type: String, required: true, trim: true },
-  className: { type: String, required: true, trim: true },
+  className: { type: String, trim: true, default: "" },
+  batch: { type: String, trim: true, default: "" },
   classTeacher: { type: String, trim: true },
   subject: { type: String, required: true, trim: true },
   faculty: {

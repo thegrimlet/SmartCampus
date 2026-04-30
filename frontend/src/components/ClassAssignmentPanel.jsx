@@ -3,6 +3,7 @@ import API from "../services/api";
 
 const emptyForm = {
   className: "",
+  batch: "Morning",
   course: "",
   semester: "",
   department: "",
@@ -51,8 +52,8 @@ export default function ClassAssignmentPanel() {
     () => students.filter((student) => !rosterUserIds.has(student._id)),
     [students, rosterUserIds]
   );
-  const syncClassView = async (className, nextAssignments = assignments) => {
-    if (!className) {
+  const syncClassView = async (classKey, nextAssignments = assignments) => {
+    if (!classKey) {
       setSelectedClass("");
       setForm(emptyForm);
       setRoster([]);
@@ -65,14 +66,15 @@ export default function ClassAssignmentPanel() {
       return;
     }
 
-    const assignment = nextAssignments.find((item) => item.className === className);
-    const rosterRes = await API.get(`/class-assignments/${encodeURIComponent(className)}/roster`);
+    const assignment = nextAssignments.find((item) => `${item.className}|${item.batch || "Morning"}` === classKey);
+    const rosterRes = await API.get(`/class-assignments/${encodeURIComponent(assignment.className)}/roster?batch=${encodeURIComponent(assignment.batch || "Morning")}`);
     const facultyEntries = rosterRes.data.faculty || [];
     const teacherEntry = facultyEntries.find((entry) => entry.user?.name === (assignment?.classTeacher || ""));
 
-    setSelectedClass(className);
+    setSelectedClass(classKey);
     setForm({
-      className: assignment?.className || className,
+      className: assignment?.className || "",
+      batch: assignment?.batch || "Morning",
       course: assignment?.course || "",
       semester: assignment?.semester || "",
       department: assignment?.department || "",
@@ -99,7 +101,7 @@ export default function ClassAssignmentPanel() {
     setUsers(usersRes.data);
     setProfiles(profilesRes.data);
 
-    const nextClass = classToKeep || assignmentsRes.data[0]?.className || "";
+    const nextClass = classToKeep || (assignmentsRes.data[0] ? `${assignmentsRes.data[0].className}|${assignmentsRes.data[0].batch || "Morning"}` : "");
     await syncClassView(nextClass, assignmentsRes.data);
   };
 
@@ -127,10 +129,11 @@ export default function ClassAssignmentPanel() {
       await API.put(`/class-assignments/${encodeURIComponent(className)}`, {
         ...form,
         className,
+        batch: form.batch,
         subjects: selectedSubjects
       });
       setMessage("Class details saved");
-      await refreshData(className);
+      await refreshData(`${className}|${form.batch}`);
     } catch (err) {
       setMessage(err.response?.data?.msg || "Failed to save class details");
     }
@@ -140,7 +143,7 @@ export default function ClassAssignmentPanel() {
     if (!form.className.trim()) return;
 
     try {
-      await API.delete(`/class-assignments/${encodeURIComponent(form.className.trim())}`);
+      await API.delete(`/class-assignments/${encodeURIComponent(form.className.trim())}?batch=${encodeURIComponent(form.batch)}`);
       setMessage("Class deleted");
       await refreshData("");
     } catch (err) {
@@ -210,7 +213,7 @@ export default function ClassAssignmentPanel() {
     }
 
     try {
-      await API.put(`/class-assignments/${encodeURIComponent(selectedClass)}/roster`, {
+      await API.put(`/class-assignments/${encodeURIComponent(form.className)}/roster?batch=${encodeURIComponent(form.batch)}`, {
         roster: roster.map((entry) => ({
           userId: entry.user?._id || entry.user,
           rollNumber: entry.rollNumber || ""
@@ -239,7 +242,7 @@ export default function ClassAssignmentPanel() {
 
     try {
       await API.put(
-        `/class-assignments/${encodeURIComponent(selectedClass)}/faculty/${selectedFacultyId}`,
+        `/class-assignments/${encodeURIComponent(form.className)}/faculty/${selectedFacultyId}?batch=${encodeURIComponent(form.batch)}`,
         {
           subjects: facultySubjects,
           isClassTeacher: classTeacherFacultyId === selectedFacultyId
@@ -254,7 +257,7 @@ export default function ClassAssignmentPanel() {
 
   const removeFacultyAssignment = async (facultyId) => {
     try {
-      await API.delete(`/class-assignments/${encodeURIComponent(selectedClass)}/faculty/${facultyId}`);
+      await API.delete(`/class-assignments/${encodeURIComponent(form.className)}/faculty/${facultyId}?batch=${encodeURIComponent(form.batch)}`);
       setMessage("Faculty assignment removed");
       await refreshData(selectedClass);
     } catch (err) {
@@ -272,12 +275,12 @@ export default function ClassAssignmentPanel() {
       <div className="button-row class-pill-row">
         {assignments.map((item) => (
           <button
-            key={item.className}
+            key={`${item.className}|${item.batch || "Morning"}`}
             type="button"
-            className={`class-pill ${selectedClass === item.className ? "active" : ""}`}
-            onClick={() => syncClassView(item.className)}
+            className={`class-pill ${selectedClass === `${item.className}|${item.batch || "Morning"}` ? "active" : ""}`}
+            onClick={() => syncClassView(`${item.className}|${item.batch || "Morning"}`)}
           >
-            {item.className}
+            {item.className} ({item.batch || "Morning"})
           </button>
         ))}
         <button
@@ -305,6 +308,14 @@ export default function ClassAssignmentPanel() {
           <label className="field-stack">
             <span>Class</span>
             <input className="input" value={form.className} onChange={(e) => setForm({ ...form, className: e.target.value })} />
+          </label>
+          <label className="field-stack">
+            <span>Batch</span>
+            <select className="input" value={form.batch} onChange={(e) => setForm({ ...form, batch: e.target.value })}>
+              <option value="Morning">Morning</option>
+              <option value="Afternoon">Afternoon</option>
+              <option value="Evening">Evening</option>
+            </select>
           </label>
           <label className="field-stack">
             <span>Course</span>

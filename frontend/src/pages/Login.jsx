@@ -1,10 +1,13 @@
-import { Link } from "react-router-dom";
 import { useState } from "react";
 import API from "../services/api";
 import "./dashboard.css";
 
 export default function Login() {
-  const [form, setForm] = useState({ email: "", password: "" });
+  const [form, setForm] = useState({ identifier: "", password: "" });
+  const [idRecoveryEmail, setIdRecoveryEmail] = useState("");
+  const [resetForm, setResetForm] = useState({ identifier: "", otp: "", password: "" });
+  const [resetStep, setResetStep] = useState("request");
+  const [mode, setMode] = useState("login");
   const [message, setMessage] = useState("");
 
   const handleLogin = async (event) => {
@@ -23,34 +26,126 @@ export default function Login() {
     }
   };
 
+  const recoverId = async (event) => {
+    event.preventDefault();
+    setMessage("");
+
+    try {
+      const res = await API.post("/auth/recover-id", { email: idRecoveryEmail });
+      setMessage(res.data.devLoginId ? `${res.data.msg} Login ID: ${res.data.devLoginId}` : res.data.msg);
+    } catch (err) {
+      setMessage(err.response?.data?.msg || "Could not recover login ID");
+    }
+  };
+
+  const requestPasswordReset = async (event) => {
+    event.preventDefault();
+    setMessage("");
+
+    try {
+      const res = await API.post("/auth/request-password-reset", { identifier: resetForm.identifier });
+      setResetStep("confirm");
+      setMessage(res.data.devOtp ? `${res.data.msg} OTP: ${res.data.devOtp}` : res.data.msg);
+    } catch (err) {
+      setMessage(err.response?.data?.msg || "Could not send reset OTP");
+    }
+  };
+
+  const resetPassword = async (event) => {
+    event.preventDefault();
+    setMessage("");
+
+    try {
+      const res = await API.post("/auth/reset-password", resetForm);
+      setResetStep("request");
+      setMode("login");
+      setResetForm({ identifier: "", otp: "", password: "" });
+      setMessage(res.data.msg);
+    } catch (err) {
+      setMessage(err.response?.data?.msg || "Could not reset password");
+    }
+  };
+
   return (
     <main className="auth-page">
-      <form className="auth-card form-grid" onSubmit={handleLogin}>
-        <p className="eyebrow">Smart Campus Management System</p>
-        <h1>Welcome Back</h1>
-        <p className="muted">Sign in after email verification.</p>
+      {mode === "login" && (
+        <form className="auth-card form-grid" onSubmit={handleLogin}>
+          <p className="eyebrow">Smart Campus Management System</p>
+          <h1>Welcome Back</h1>
+          <p className="muted">Students use roll number. Faculties use faculty number. Admins can use email.</p>
 
-        <input
-          placeholder="Email"
-          type="email"
-          value={form.email}
-          onChange={(e) => setForm({ ...form, email: e.target.value })}
-        />
+          <input
+            placeholder="Roll number / Faculty number / Admin email"
+            value={form.identifier}
+            onChange={(e) => setForm({ ...form, identifier: e.target.value })}
+          />
 
-        <input
-          type="password"
-          placeholder="Password"
-          value={form.password}
-          onChange={(e) => setForm({ ...form, password: e.target.value })}
-        />
+          <input
+            type="password"
+            placeholder="Password"
+            value={form.password}
+            onChange={(e) => setForm({ ...form, password: e.target.value })}
+          />
 
-        {message && <p className="muted">{message}</p>}
+          {message && <p className="muted">{message}</p>}
 
-        <button className="button primary" type="submit">Login</button>
-        <p className="muted">
-          Need an account? <Link to="/register">Register</Link>
-        </p>
-      </form>
+          <button className="button primary" type="submit">Login</button>
+          <div className="auth-actions">
+            <button className="linklike" type="button" onClick={() => setMode("recover-id")}>Forgot ID?</button>
+            <button className="linklike" type="button" onClick={() => setMode("reset-password")}>Forgot Password?</button>
+          </div>
+        </form>
+      )}
+
+      {mode === "recover-id" && (
+        <form className="auth-card form-grid" onSubmit={recoverId}>
+          <p className="eyebrow">Account Recovery</p>
+          <h1>Find Login ID</h1>
+          <p className="muted">Enter the Gmail address registered by the administrator.</p>
+          <input
+            placeholder="Registered Gmail"
+            type="email"
+            value={idRecoveryEmail}
+            onChange={(e) => setIdRecoveryEmail(e.target.value)}
+          />
+          {message && <p className="muted">{message}</p>}
+          <button className="button primary" type="submit">Send Login ID</button>
+          <button className="button btn-cancel" type="button" onClick={() => setMode("login")}>Back to Login</button>
+        </form>
+      )}
+
+      {mode === "reset-password" && (
+        <form className="auth-card form-grid" onSubmit={resetStep === "request" ? requestPasswordReset : resetPassword}>
+          <p className="eyebrow">Password Recovery</p>
+          <h1>Reset Password</h1>
+          <p className="muted">Use your roll number, faculty number, or registered email.</p>
+          <input
+            placeholder="Login ID or registered email"
+            value={resetForm.identifier}
+            onChange={(e) => setResetForm({ ...resetForm, identifier: e.target.value })}
+          />
+          {resetStep === "confirm" && (
+            <>
+              <input
+                placeholder="OTP"
+                value={resetForm.otp}
+                onChange={(e) => setResetForm({ ...resetForm, otp: e.target.value })}
+              />
+              <input
+                type="password"
+                placeholder="New Password"
+                value={resetForm.password}
+                onChange={(e) => setResetForm({ ...resetForm, password: e.target.value })}
+              />
+            </>
+          )}
+          {message && <p className="muted">{message}</p>}
+          <button className="button primary" type="submit">
+            {resetStep === "request" ? "Send OTP" : "Change Password"}
+          </button>
+          <button className="button btn-cancel" type="button" onClick={() => setMode("login")}>Back to Login</button>
+        </form>
+      )}
     </main>
   );
 }
