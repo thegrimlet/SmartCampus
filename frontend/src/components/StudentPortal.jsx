@@ -24,6 +24,7 @@ const panelTitles = {
 };
 
 const scheduleDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+const getTodayName = () => new Date().toLocaleDateString("en-US", { weekday: "long" });
 const scheduleSlots = [
   { startTime: "08:30", endTime: "09:15" },
   { startTime: "09:20", endTime: "10:05" },
@@ -118,7 +119,7 @@ export default function StudentPortal({ user, onLogout }) {
 
   const recentMessages = messages.slice(0, 4);
 
-  const scheduleBoard = () => {
+  const scheduleBoard = ({ days = scheduleDays, mode = "full" } = {}) => {
     const entryMap = new Map(
       timetable.map((entry) => [scheduleKey(entry.day, entry.startTime, entry.endTime), entry])
     );
@@ -128,11 +129,26 @@ export default function StudentPortal({ user, onLogout }) {
     const subtitle = timetable[0]
       ? `Room No. ${timetable[0].room || "TBA"}, Class Teacher: ${timetable[0].classTeacher || timetable[0].faculty?.name || "TBA"}`
       : "No timetable entries available";
+    const visibleDays = days.filter((day) => scheduleDays.includes(day));
+    const hasVisibleClass = visibleDays.some((day) =>
+      scheduleSlots.some((slot) => entryMap.has(scheduleKey(day, slot.startTime, slot.endTime)))
+    );
+
+    if (mode === "today" && (!visibleDays.length || !hasVisibleClass)) {
+      return (
+        <div className="student-empty-state">
+          <strong>No classes scheduled today.</strong>
+          <span>Open My Classes from the side panel to view the full timetable.</span>
+        </div>
+      );
+    }
 
     return (
       <div className="schedule-board">
         <div className="schedule-board-title">{title}</div>
-        <div className="schedule-board-subtitle">{subtitle}</div>
+        <div className="schedule-board-subtitle">
+          {mode === "today" ? `Today's Classes - ${visibleDays[0]}` : subtitle}
+        </div>
         <div className="schedule-grid">
           <div className="schedule-grid-head schedule-day-col">Day/Timing</div>
           {scheduleSlots.map((slot) => (
@@ -141,7 +157,7 @@ export default function StudentPortal({ user, onLogout }) {
             </div>
           ))}
 
-          {scheduleDays.map((day) => (
+          {visibleDays.map((day) => (
             <Fragment key={day}>
               <div key={`${day}-label`} className="schedule-day-col schedule-day-name">{day}</div>
               {scheduleSlots.map((slot) => {
@@ -224,7 +240,7 @@ export default function StudentPortal({ user, onLogout }) {
             <h2>My Classes</h2>
           </div>
           <div className="student-panel-body">
-            {scheduleBoard()}
+            {scheduleBoard({ days: [getTodayName()], mode: "today" })}
           </div>
         </article>
 

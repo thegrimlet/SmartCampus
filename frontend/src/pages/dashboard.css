@@ -90,7 +90,7 @@ h1 {
 
 .stat-card strong {
   display: block;
-  color: #1d64d8;
+  color: #28666e;
   font-size: 1.8rem;
 }
 
@@ -136,8 +136,8 @@ h1 {
 }
 
 .class-pill.active {
-  background: #154d92;
-  border-color: #154d92;
+  background: #28666e;
+  border-color: #28666e;
   color: #ffffff;
 }
 
@@ -264,7 +264,7 @@ h1 {
   min-width: 24px;
   height: 24px;
   border-radius: 999px;
-  background: #1d64d8;
+  background: #ff6f61;
   color: #ffffff;
   display: inline-flex;
   align-items: center;
@@ -287,7 +287,7 @@ h1 {
 
 .catalog-hero {
   min-height: 96px;
-  background: #25afa8;
+  background: #28666e;
   color: #ffffff;
   padding: 24px;
   display: flex;
@@ -327,7 +327,7 @@ h1 {
 }
 
 .admin-table th {
-  background: #25afa8;
+  background: #28666e;
   color: #ffffff;
   font-size: 1rem;
   padding: 10px;
@@ -384,12 +384,12 @@ textarea {
 
 .button.primary,
 .btn-save {
-  background: #1d64d8;
+  background: #ff6f61;
   color: #ffffff;
 }
 
 .btn-edit {
-  background: #0f8b6f;
+  background: #28666e;
   color: #ffffff;
 }
 
@@ -419,7 +419,7 @@ textarea {
 .linklike {
   border: 0;
   background: transparent;
-  color: #1d64d8;
+  color: #28666e;
   cursor: pointer;
   font-weight: 700;
   padding: 0;
@@ -435,7 +435,7 @@ textarea {
 }
 
 .notice-card {
-  border-left: 4px solid #0f8b6f;
+  border-left: 4px solid #ff6f61;
 }
 
 .muted {
@@ -446,15 +446,121 @@ textarea {
   display: grid;
   place-items: center;
   padding: 24px;
+  background:
+    radial-gradient(circle at 18% 18%, rgba(255, 111, 97, 0.34), transparent 30%),
+    radial-gradient(circle at 82% 26%, rgba(54, 191, 183, 0.32), transparent 32%),
+    linear-gradient(140deg, #183642 0%, #28666e 48%, #f2d0a4 100%);
+}
+
+.auth-portal {
+  width: min(1200px, 100%);
+  min-height: 620px;
+  display: grid;
+  grid-template-columns: minmax(320px, 0.9fr) minmax(360px, 1fr);
+  align-items: center;
+  gap: 56px;
+  padding: 44px 56px;
+  background: rgba(247, 250, 246, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 8px;
+  box-shadow: 0 30px 80px rgba(8, 24, 31, 0.28);
+  backdrop-filter: blur(8px);
+}
+
+.auth-showcase {
+  display: grid;
+  gap: 24px;
+  align-content: center;
+  color: #14233a;
+}
+
+.auth-logo {
+  width: fit-content;
+  color: #ffffff;
+  background: #183642;
+  border-left: 8px solid #ff6f61;
+  border-radius: 8px;
+  padding: 12px 18px;
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.16);
+}
+
+.auth-showcase img {
+  width: min(390px, 100%);
+  aspect-ratio: 4 / 5;
+  object-fit: contain;
+  background: rgba(236, 248, 244, 0.82);
+  padding: 12px;
+  border: 4px solid rgba(255, 255, 255, 0.8);
+  border-radius: 8px;
+  box-shadow: 0 18px 42px rgba(8, 24, 31, 0.22);
+}
+
+.auth-showcase h2 {
+  max-width: 430px;
+  margin: 0;
+  font-size: 1.8rem;
+  line-height: 1.2;
+}
+
+.auth-panel {
+  display: grid;
+  justify-items: center;
 }
 
 .auth-card {
-  width: min(440px, 100%);
+  width: min(470px, 100%);
   padding: 26px;
+}
+
+.auth-panel .auth-card {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  padding: 0;
 }
 
 .auth-card h1 {
   margin-bottom: 8px;
+  color: #183642;
+  font-size: 2rem;
+  text-transform: uppercase;
+}
+
+.auth-card h1 span {
+  color: #ff6f61;
+}
+
+.auth-panel .auth-card input {
+  min-height: 62px;
+  border: 0;
+  border-radius: 999px;
+  padding: 0 28px;
+  background: #edf7f4;
+  box-shadow: inset 0 0 0 1px rgba(40, 102, 110, 0.1);
+}
+
+.auth-check {
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 8px;
+  background: #183642;
+  color: #ffffff;
+  padding: 18px 22px;
+  font-weight: 700;
+}
+
+.auth-submit {
+  min-height: 64px;
+  border-radius: 999px;
+  background: #ff6f61;
+  font-size: 1rem;
+  text-transform: uppercase;
+}
+
+.auth-submit:hover {
+  background: #e85d50;
 }
 
 .attendance-status {
@@ -471,7 +577,15 @@ textarea {
   background: #eef3f9;
 }
 
-.student-sidebar {
+.admin-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  background: #eef3f9;
+}
+
+.student-sidebar,
+.admin-sidebar {
   background: #f8fafc;
   border-right: 1px solid #d8e1ec;
   display: grid;
@@ -479,7 +593,7 @@ textarea {
 }
 
 .student-brand {
-  background: #154d92;
+  background: #183642;
   color: #fff;
   padding: 20px;
   display: flex;
@@ -495,8 +609,8 @@ textarea {
   width: 44px;
   height: 44px;
   border-radius: 8px;
-  background: #f4b132;
-  color: #1d1d1d;
+  background: #ff6f61;
+  color: #ffffff;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -525,8 +639,8 @@ textarea {
 
 .student-nav-link.active {
   background: #ffffff;
-  color: #154d92;
-  box-shadow: inset 4px 0 0 #2f80ed;
+  color: #28666e;
+  box-shadow: inset 4px 0 0 #ff6f61;
   font-weight: 700;
 }
 
@@ -536,8 +650,36 @@ textarea {
   gap: 20px;
 }
 
+.admin-main {
+  min-width: 0;
+  padding: 20px;
+  display: grid;
+  gap: 20px;
+  align-content: start;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.admin-main > * {
+  min-width: 0;
+  width: 100%;
+}
+
+.admin-main > .student-topbar,
+.admin-main > .panel,
+.admin-main > .stack {
+  grid-column: 1 / -1;
+}
+
+.admin-main > .panel {
+  grid-column: 1;
+}
+
+.admin-stats {
+  margin-bottom: 0;
+}
+
 .student-topbar {
-  background: #154d92;
+  background: #183642;
   color: #fff;
   border-radius: 8px;
   padding: 18px 20px;
@@ -593,7 +735,7 @@ textarea {
   display: flex;
   gap: 18px;
   align-items: center;
-  background: linear-gradient(135deg, #2bc7b0, #6dd5c4);
+  background: linear-gradient(135deg, #28666e, #3f8f88);
   color: #fff;
 }
 
@@ -654,7 +796,7 @@ textarea {
 .low { background: #dc2626; }
 
 .student-metric-fee {
-  background: #ff6682;
+  background: #d85f74;
   color: #fff;
   display: grid;
   align-content: center;
@@ -668,7 +810,9 @@ textarea {
 .student-banner img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  background: #e8f0e8;
+  padding: 10px;
   display: block;
 }
 
@@ -681,7 +825,7 @@ textarea {
 }
 
 .student-metric-cgpa {
-  background: #f6b553;
+  background: #f2d0a4;
 }
 
 .student-cgpa-bars {
@@ -709,7 +853,7 @@ textarea {
   top: 50%;
   width: 14px;
   height: 14px;
-  background: #3085d6;
+  background: #28666e;
   border-radius: 50%;
   transform: translate(-50%, -50%);
 }
@@ -723,6 +867,23 @@ textarea {
   padding: 14px;
   display: grid;
   gap: 10px;
+}
+
+.student-empty-state {
+  min-height: 180px;
+  display: grid;
+  place-items: center;
+  gap: 8px;
+  text-align: center;
+  border: 1px dashed #c8d8d4;
+  border-radius: 8px;
+  background: #f7faf6;
+  color: #183642;
+  padding: 24px;
+}
+
+.student-empty-state span {
+  color: #64748b;
 }
 
 .student-class-row,
@@ -823,8 +984,8 @@ textarea {
 }
 
 .schedule-board-title {
-  background: #24a8d8;
-  color: #11243d;
+  background: #28666e;
+  color: #ffffff;
   font-size: 1.1rem;
   letter-spacing: 0;
 }
@@ -835,14 +996,14 @@ textarea {
 }
 
 .schedule-board-title-admin {
-  background: linear-gradient(180deg, #1cb0dd, #159ac4);
-  color: #10243e;
+  background: linear-gradient(180deg, #28666e, #183642);
+  color: #ffffff;
   text-transform: uppercase;
 }
 
 .schedule-board-subtitle-admin {
-  background: linear-gradient(180deg, #f7c325, #efb514);
-  color: #2f2500;
+  background: linear-gradient(180deg, #ff6f61, #d85f74);
+  color: #ffffff;
   font-weight: 800;
 }
 
@@ -863,20 +1024,20 @@ textarea {
 }
 
 .schedule-grid-head {
-  background: #8fd14f;
+  background: #cce7df;
   font-weight: 800;
   text-align: center;
-  color: #193100;
+  color: #183642;
 }
 
 .schedule-day-col {
-  background: #8fd14f;
+  background: #cce7df;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 800;
   text-align: center;
-  color: #193100;
+  color: #183642;
 }
 
 .schedule-cell {
@@ -889,7 +1050,7 @@ textarea {
 
 .schedule-cell.filled {
   background: linear-gradient(180deg, var(--subject-surface, #ffffff), #ffffff);
-  box-shadow: inset 0 4px 0 var(--subject-accent, #24a8d8);
+  box-shadow: inset 0 4px 0 var(--subject-accent, #28666e);
 }
 
 .schedule-cell strong {
@@ -904,7 +1065,7 @@ textarea {
 }
 
 .schedule-cell.vacant {
-  background: linear-gradient(180deg, #ffd34f, #f4b400);
+  background: linear-gradient(180deg, #f7e6bd, #f2d0a4);
 }
 
 .admin-grid .schedule-cell {
@@ -921,9 +1082,9 @@ textarea {
 }
 
 .schedule-cell-button.selected {
-  outline: 3px solid #2f80ed;
+  outline: 3px solid #ff6f61;
   outline-offset: -3px;
-  box-shadow: inset 0 0 0 2px #ffffff, inset 0 4px 0 var(--subject-accent, #2f80ed);
+  box-shadow: inset 0 0 0 2px #ffffff, inset 0 4px 0 var(--subject-accent, #ff6f61);
 }
 
 @media (max-width: 900px) {
@@ -949,17 +1110,35 @@ textarea {
     grid-template-columns: 1fr;
   }
 
-  .student-shell {
+  .student-shell,
+  .admin-shell {
     grid-template-columns: 1fr;
   }
 
-  .student-sidebar {
+  .student-sidebar,
+  .admin-sidebar {
     display: none;
   }
 
   .student-topbar {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .auth-portal {
+    grid-template-columns: 1fr;
+    gap: 28px;
+    padding: 28px;
+  }
+
+  .auth-showcase {
+    justify-items: center;
+    text-align: center;
+  }
+
+  .auth-showcase img {
+    width: min(320px, 100%);
+    aspect-ratio: 16 / 9;
   }
 
   .student-hero-grid,

@@ -80,20 +80,19 @@ router.post("/students", auth, async (req, res) => {
     }
 
     const rollNumber = clean(req.body.rollNumber);
-    const firstName = clean(req.body.firstName);
-    const lastName = clean(req.body.lastName);
+    const studentName = clean(req.body.name) || [clean(req.body.firstName), clean(req.body.lastName)].filter(Boolean).join(" ");
     const email = clean(req.body.email)?.toLowerCase();
     const password = req.body.password;
 
-    if (!rollNumber || !firstName || !email || !password) {
-      return res.status(400).json({ msg: "Roll number, first name, email, and password are required" });
+    if (!rollNumber || !studentName || !email || !password) {
+      return res.status(400).json({ msg: "Roll number, student name, email, and password are required" });
     }
     if (password.length < 6) {
       return res.status(400).json({ msg: "Password must be at least 6 characters" });
     }
 
     const user = await User.create({
-      name: [firstName, lastName].filter(Boolean).join(" "),
+      name: studentName,
       email,
       institutionalId: rollNumber,
       password: await createPassword(password),
@@ -108,8 +107,8 @@ router.post("/students", auth, async (req, res) => {
       semester: clean(req.body.semester),
       department: clean(req.body.department),
       rollNumber,
-      firstName,
-      lastName,
+      firstName: studentName,
+      lastName: "",
       phone: clean(req.body.phone),
       address: clean(req.body.address),
       state: clean(req.body.state),
@@ -125,6 +124,66 @@ router.post("/students", auth, async (req, res) => {
 
     await profile.populate("user", "-password");
     res.status(201).json(profile);
+  } catch (err) {
+    const msg = duplicateMessage(err);
+    res.status(msg ? 400 : 500).json({ msg: msg || err.message });
+  }
+});
+
+router.put("/students/:profileId", auth, async (req, res) => {
+  try {
+    if (!ensureAdmin(req, res)) {
+      return;
+    }
+
+    const profile = await Profile.findById(req.params.profileId).populate("user");
+    if (!profile || profile.user?.role !== "student") {
+      return res.status(404).json({ msg: "Student not found" });
+    }
+
+    const rollNumber = clean(req.body.rollNumber);
+    const studentName = clean(req.body.name) || [clean(req.body.firstName), clean(req.body.lastName)].filter(Boolean).join(" ");
+    const email = clean(req.body.email)?.toLowerCase();
+    const password = req.body.password;
+
+    if (!rollNumber || !studentName || !email) {
+      return res.status(400).json({ msg: "Roll number, student name, and email are required" });
+    }
+    if (password && password.length < 6) {
+      return res.status(400).json({ msg: "Password must be at least 6 characters" });
+    }
+
+    profile.user.name = studentName;
+    profile.user.email = email;
+    profile.user.institutionalId = rollNumber;
+    if (password) {
+      profile.user.password = await createPassword(password);
+    }
+    await profile.user.save();
+
+    profile.set({
+      course: clean(req.body.course),
+      semester: clean(req.body.semester),
+      department: clean(req.body.department),
+      rollNumber,
+      firstName: studentName,
+      lastName: "",
+      phone: clean(req.body.phone),
+      address: clean(req.body.address),
+      state: clean(req.body.state),
+      city: clean(req.body.city),
+      dateOfBirth: req.body.dateOfBirth || undefined,
+      gender: clean(req.body.gender),
+      fatherName: clean(req.body.fatherName),
+      fatherOccupation: clean(req.body.fatherOccupation),
+      motherName: clean(req.body.motherName),
+      motherOccupation: clean(req.body.motherOccupation),
+      photoUrl: clean(req.body.photoUrl)
+    });
+    await profile.save();
+    await profile.populate("user", "-password");
+
+    res.json(profile);
   } catch (err) {
     const msg = duplicateMessage(err);
     res.status(msg ? 400 : 500).json({ msg: msg || err.message });
