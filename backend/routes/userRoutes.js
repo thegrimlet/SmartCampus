@@ -3,6 +3,7 @@ const bcrypt = require("bcryptjs");
 const User = require("../models/User");
 const Profile = require("../models/Profile");
 const auth = require("../middleware/authMiddleware");
+const { isValidEmail, isValidPhone } = require("../utils/validators");
 
 const ensureAdmin = (req, res) => {
   if (req.user.role !== "admin") {
@@ -25,6 +26,12 @@ const duplicateMessage = (err) => {
   if (field === "email") return "Email already exists";
   if (field === "institutionalId") return "Login ID already exists";
   return "Account already exists";
+};
+
+const contactError = ({ email, phone }) => {
+  if (!isValidEmail(email)) return "Enter a valid email address";
+  if (!isValidPhone(phone)) return "Enter a valid phone number";
+  return "";
 };
 
 const studentProfileProjection = "course semester department rollNumber firstName lastName phone address state city dateOfBirth gender fatherName fatherOccupation motherName motherOccupation photoUrl";
@@ -87,6 +94,10 @@ router.post("/students", auth, async (req, res) => {
     if (!rollNumber || !studentName || !email || !password) {
       return res.status(400).json({ msg: "Roll number, student name, email, and password are required" });
     }
+    const validationMessage = contactError({ email, phone: req.body.phone });
+    if (validationMessage) {
+      return res.status(400).json({ msg: validationMessage });
+    }
     if (password.length < 6) {
       return res.status(400).json({ msg: "Password must be at least 6 characters" });
     }
@@ -148,6 +159,10 @@ router.put("/students/:profileId", auth, async (req, res) => {
 
     if (!rollNumber || !studentName || !email) {
       return res.status(400).json({ msg: "Roll number, student name, and email are required" });
+    }
+    const validationMessage = contactError({ email, phone: req.body.phone });
+    if (validationMessage) {
+      return res.status(400).json({ msg: validationMessage });
     }
     if (password && password.length < 6) {
       return res.status(400).json({ msg: "Password must be at least 6 characters" });
@@ -237,6 +252,10 @@ router.post("/faculty", auth, async (req, res) => {
 
     if (!facultyNumber || !name || !email || !password) {
       return res.status(400).json({ msg: "Faculty number, name, email, and password are required" });
+    }
+    const validationMessage = contactError({ email, phone: req.body.phone });
+    if (validationMessage) {
+      return res.status(400).json({ msg: validationMessage });
     }
     if (password.length < 6) {
       return res.status(400).json({ msg: "Password must be at least 6 characters" });

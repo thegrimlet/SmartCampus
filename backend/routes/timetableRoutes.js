@@ -133,7 +133,7 @@ router.put("/slot", auth, async (req, res) => {
         endTime: resolved.endTime
       },
       resolved,
-      { new: true, upsert: true, runValidators: true }
+      { returnDocument: "after", upsert: true, runValidators: true }
     ).populate("faculty", "name email");
 
     res.json(entry);
@@ -157,8 +157,17 @@ router.get("/", auth, async (req, res) => {
 
     if (req.user.role === "student") {
       const profile = await Profile.findOne({ user: req.user.id });
-      query.className = profile?.assignedClass || "__none__";
-      query.batch = profile?.assignedBatch || "Morning";
+      if (profile?.assignedClass) {
+        query.className = profile.assignedClass;
+        query.batch = profile.assignedBatch || "Morning";
+      } else if (profile?.course && profile?.semester) {
+        query.course = profile.course;
+        query.semester = profile.semester;
+        query.className = "";
+        query.batch = "";
+      } else {
+        query._id = null;
+      }
     }
 
     const entries = await Timetable.find(query)

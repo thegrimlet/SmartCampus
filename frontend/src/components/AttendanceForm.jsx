@@ -2,37 +2,56 @@ import { useEffect, useMemo, useState } from "react";
 import API from "../services/api";
 
 const todayValue = () => new Date().toISOString().slice(0, 10);
+const uniqueValues = (items, field) => [...new Set(items.map((item) => item[field]).filter(Boolean))];
 
 export default function AttendanceForm() {
   const [date, setDate] = useState(todayValue());
-  const [classes, setClasses] = useState([]);
   const [allLectures, setAllLectures] = useState([]);
-  const [classKey, setClassKey] = useState("");
+  const [filters, setFilters] = useState({ course: "", semester: "", subject: "" });
   const [lectureKey, setLectureKey] = useState("");
   const [students, setStudents] = useState([]);
   const [attendance, setAttendance] = useState({});
   const [sessionInfo, setSessionInfo] = useState(null);
   const [message, setMessage] = useState("");
 
-  const lectures = useMemo(
-    () => allLectures.filter((lecture) => `${lecture.className}|${lecture.batch || "Morning"}` === classKey),
-    [allLectures, classKey]
-  );
   const selectedLecture = useMemo(
-    () => lectures.find((lecture) => `${lecture.className}|${lecture.batch || "Morning"}|${lecture.startTime}|${lecture.endTime}` === lectureKey),
-    [lectureKey, lectures]
+    () => allLectures.find((lecture) => lecture._id === lectureKey),
+    [allLectures, lectureKey]
   );
 
-  const loadLectures = async (nextDate, preferredClass = "") => {
-    const res = await API.get(`/attendance/faculty/lectures?date=${encodeURIComponent(nextDate)}`);
-    const classOptions = res.data.classes || [];
-    const nextClass = preferredClass || classOptions[0]?.key || "";
-    const lectureOptions = (res.data.lectures || []).filter((lecture) => `${lecture.className}|${lecture.batch || "Morning"}` === nextClass);
+  const courseOptions = useMemo(() => uniqueValues(allLectures, "course"), [allLectures]);
+  const semesterOptions = useMemo(
+    () => uniqueValues(allLectures.filter((lecture) => lecture.course === filters.course), "semester"),
+    [allLectures, filters.course]
+  );
+  const subjectOptions = useMemo(
+    () => uniqueValues(allLectures.filter((lecture) =>
+      lecture.course === filters.course && lecture.semester === filters.semester
+    ), "subject"),
+    [allLectures, filters.course, filters.semester]
+  );
+  const filteredLectures = useMemo(
+    () => allLectures.filter((lecture) =>
+      lecture.course === filters.course &&
+      lecture.semester === filters.semester &&
+      lecture.subject === filters.subject
+    ),
+    [allLectures, filters]
+  );
 
-    setClasses(classOptions);
-    setAllLectures(res.data.lectures || []);
-    setClassKey(nextClass);
-    setLectureKey(lectureOptions[0] ? `${lectureOptions[0].className}|${lectureOptions[0].batch || "Morning"}|${lectureOptions[0].startTime}|${lectureOptions[0].endTime}` : "");
+  const loadLectures = async (nextDate, preferredLecture = "") => {
+    const res = await API.get(`/attendance/faculty/lectures?date=${encodeURIComponent(nextDate)}`);
+    const lectureOptions = res.data.lectures || [];
+    const preferred = lectureOptions.find((lecture) => lecture._id === preferredLecture);
+    const firstLecture = preferred || lectureOptions[0];
+
+    setAllLectures(lectureOptions);
+    setFilters({
+      course: firstLecture?.course || "",
+      semester: firstLecture?.semester || "",
+      subject: firstLecture?.subject || ""
+    });
+    setLectureKey(firstLecture?._id || "");
   };
 
   useEffect(() => {
@@ -50,8 +69,7 @@ export default function AttendanceForm() {
       }
 
       const res = await API.get(
-        `/attendance/faculty/session?className=${encodeURIComponent(selectedLecture.className)}&date=${encodeURIComponent(date)}&startTime=${encodeURIComponent(selectedLecture.startTime)}&endTime=${encodeURIComponent(selectedLecture.endTime)}`
-        + `&batch=${encodeURIComponent(selectedLecture.batch || "Morning")}`
+        `/attendance/faculty/session?timetableEntry=${encodeURIComponent(selectedLecture._id)}&date=${encodeURIComponent(date)}&startTime=${encodeURIComponent(selectedLecture.startTime)}&endTime=${encodeURIComponent(selectedLecture.endTime)}`
       );
 
       setSessionInfo({
@@ -77,10 +95,29 @@ export default function AttendanceForm() {
     }));
   };
 
-  const handleClassChange = (nextClass) => {
-    const lectureOptions = allLectures.filter((lecture) => `${lecture.className}|${lecture.batch || "Morning"}` === nextClass);
-    setClassKey(nextClass);
-    setLectureKey(lectureOptions[0] ? `${lectureOptions[0].className}|${lectureOptions[0].batch || "Morning"}|${lectureOptions[0].startTime}|${lectureOptions[0].endTime}` : "");
+  const updateFilter = (field, value) => {
+    const nextFilters = {
+      ...filters,
+      [field]: value
+    };
+
+    if (field === "course") {
+      nextFilters.semester = "";
+      nextFilters.subject = "";
+    }
+
+    if (field === "semester") {
+      nextFilters.subject = "";
+    }
+
+    const nextLecture = allLectures.find((lecture) =>
+      (!nextFilters.course || lecture.course === nextFilters.course) &&
+      (!nextFilters.semester || lecture.semester === nextFilters.semester) &&
+      (!nextFilters.subject || lecture.subject === nextFilters.subject)
+    );
+
+    setFilters(nextFilters);
+    setLectureKey(nextFilters.course && nextFilters.semester && nextFilters.subject ? (nextLecture?._id || "") : "");
   };
 
   const handleSubmit = async (event) => {
@@ -99,15 +136,18 @@ export default function AttendanceForm() {
 
     try {
       const res = await API.put("/attendance/faculty/session", {
+        timetableEntry: selectedLecture._id,
         className: selectedLecture.className,
         batch: selectedLecture.batch || "Morning",
+        course: selectedLecture.course,
+        semester: selectedLecture.semester,
         date,
         startTime: selectedLecture.startTime,
         endTime: selectedLecture.endTime,
         records
       });
       setMessage(`${res.data.created} created, ${res.data.updated} updated`);
-      await loadLectures(date, classKey);
+      await loadLectures(date, lectureKey);
     } catch (err) {
       setMessage(err.response?.data?.msg || "Error saving attendance");
     }
@@ -120,38 +160,62 @@ export default function AttendanceForm() {
         <p className="muted">Select a date, then choose one of your assigned lecture slots to create or revise attendance.</p>
       </div>
 
-      <label className="field-stack">
-        <span>Date</span>
-        <input className="input" type="date" value={date} onChange={(e) => {
-          setMessage("");
-          setDate(e.target.value);
-        }} />
-      </label>
+      <div className="attendance-filter-bar">
+        <label className="field-stack">
+          <span>Date</span>
+          <input className="input" type="date" value={date} onChange={(e) => {
+            setMessage("");
+            setDate(e.target.value);
+          }} />
+        </label>
 
-      <label className="field-stack">
-        <span>Class</span>
-        <select className="input" value={classKey} onChange={(e) => handleClassChange(e.target.value)}>
-          <option value="">Select class</option>
-          {classes.map((item) => (
-            <option key={item.key} value={item.key}>{item.label}</option>
-          ))}
-        </select>
-      </label>
+        <label className="field-stack">
+          <span>Course</span>
+          <select className="input" value={filters.course} onChange={(e) => updateFilter("course", e.target.value)}>
+            <option value="">Select course</option>
+            {courseOptions.map((course) => (
+              <option key={course} value={course}>{course}</option>
+            ))}
+          </select>
+        </label>
 
-      <label className="field-stack">
-        <span>Lecture</span>
-        <select className="input" value={lectureKey} onChange={(e) => setLectureKey(e.target.value)}>
-          <option value="">Select lecture</option>
-          {lectures.map((lecture) => {
-            const key = `${lecture.className}|${lecture.batch || "Morning"}|${lecture.startTime}|${lecture.endTime}`;
-            return (
-              <option key={key} value={key}>
-                {lecture.startTime}-{lecture.endTime} | {lecture.subject} | {lecture.batch || "Morning"} {lecture.room ? `| ${lecture.room}` : ""}
-              </option>
-            );
-          })}
-        </select>
-      </label>
+        <label className="field-stack">
+          <span>Semester</span>
+          <select className="input" value={filters.semester} onChange={(e) => updateFilter("semester", e.target.value)} disabled={!filters.course}>
+            <option value="">Select semester</option>
+            {semesterOptions.map((semester) => (
+              <option key={semester} value={semester}>{semester}</option>
+            ))}
+          </select>
+        </label>
+
+        <label className="field-stack">
+          <span>Subject</span>
+          <select className="input" value={filters.subject} onChange={(e) => updateFilter("subject", e.target.value)} disabled={!filters.semester}>
+            <option value="">Select subject</option>
+            {subjectOptions.map((subject) => (
+              <option key={subject} value={subject}>{subject}</option>
+            ))}
+          </select>
+        </label>
+
+        <label className="field-stack attendance-lecture-filter">
+          <span>Lecture</span>
+          <select className="input" value={lectureKey} onChange={(e) => setLectureKey(e.target.value)} disabled={!filters.subject}>
+            <option value="">Select lecture</option>
+            {filteredLectures.map((lecture) => {
+              const scope = lecture.className
+                ? `${lecture.className}${lecture.batch ? ` (${lecture.batch})` : ""}`
+                : `${lecture.course || "Course"} ${lecture.semester || ""}`.trim();
+              return (
+                <option key={lecture._id} value={lecture._id}>
+                  {lecture.startTime}-{lecture.endTime} | {lecture.subject} | {scope} {lecture.room ? `| ${lecture.room}` : ""}
+                </option>
+              );
+            })}
+          </select>
+        </label>
+      </div>
 
       {sessionInfo && (
         <div className="class-admin-card stack">

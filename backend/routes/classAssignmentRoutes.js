@@ -62,7 +62,7 @@ router.put("/:className", auth, async (req, res) => {
         classTeacher: req.body.classTeacher,
         subjects: normalizeSubjects(req.body.subjects || [])
       },
-      { new: true, upsert: true, runValidators: true }
+      { returnDocument: "after", upsert: true, runValidators: true }
     );
 
     res.json(assignment);
@@ -165,7 +165,7 @@ router.put("/:className/roster", auth, async (req, res) => {
             assignedBatch: batch,
             rollNumber: (entry.rollNumber || "").trim()
           },
-          { upsert: true, new: true, runValidators: true }
+          { upsert: true, returnDocument: "after", runValidators: true }
         )
       )
     );
@@ -229,7 +229,7 @@ router.put("/:className/faculty/:facultyId", auth, async (req, res) => {
         assignedBatch: batch,
         assignedSubjects: subjects
       },
-      { upsert: true, new: true, runValidators: true }
+      { upsert: true, returnDocument: "after", runValidators: true }
     ).populate("user", "name email role status");
 
     const shouldBeClassTeacher = Boolean(req.body.isClassTeacher);
@@ -283,7 +283,7 @@ router.delete("/:className/faculty/:facultyId", auth, async (req, res) => {
         assignedBatch: "",
         assignedSubjects: []
       },
-      { new: true }
+      { returnDocument: "after" }
     );
 
     if (assignment.classTeacher === faculty.name) {

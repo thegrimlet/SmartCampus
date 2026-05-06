@@ -249,7 +249,14 @@ export default function TimetablePanel({ user }) {
       ? `Room No. ${entries[0].room || "TBA"}, Class Teacher: ${entries[0].classTeacher || entries[0].faculty?.name || "TBA"}`
       : "No timetable entries available";
 
-    return <TimetableBoard entries={entries} title={boardTitle} subtitle={subtitle} />;
+    return (
+      <div className="stack">
+        {user.role === "faculty" && (
+          <p className="muted">Read-only timetable. Only administrators can create or edit timetable slots.</p>
+        )}
+        <TimetableBoard entries={entries} title={boardTitle} subtitle={subtitle} />
+      </div>
+    );
   }
 
   return (

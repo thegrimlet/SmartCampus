@@ -1,4 +1,6 @@
 const router = require("express").Router();
+const crypto = require("crypto");
+const Razorpay = require("razorpay");
 const Payment = require("../models/Payment");
 const FeeStructure = require("../models/FeeStructure");
 const Profile = require("../models/Profile");
@@ -16,6 +18,26 @@ const ensureAdmin = (req, res) => {
 
 const buildReceiptNumber = () =>
   `RCPT-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`;
+
+const getRazorpay = () => {
+  if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+    return null;
+  }
+
+  return new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID,
+    key_secret: process.env.RAZORPAY_KEY_SECRET
+  });
+};
+
+const paymentStudentId = (payment) => {
+  const student = payment.student;
+  if (!student) return "";
+  return String(student._id || student);
+};
+
+const canAccessPayment = (req, payment) =>
+  req.user.role === "admin" || paymentStudentId(payment) === req.user.id;
 
 router.get("/structures", auth, async (req, res) => {
   try {
@@ -53,7 +75,7 @@ router.post("/structures", auth, async (req, res) => {
         dueDate: req.body.dueDate,
         notes: req.body.notes
       },
-      { new: true, upsert: true, runValidators: true }
+      { returnDocument: "after", upsert: true, runValidators: true }
     );
 
     res.json(structure);
@@ -73,7 +95,18 @@ router.post("/structures/:id/assign", auth, async (req, res) => {
       return res.status(404).json({ msg: "Fee structure not found" });
     }
 
-    const studentProfiles = await Profile.find({ assignedClass: structure.className }).select("user");
+    const profileQuery = {
+      $or: [
+        { assignedClass: structure.className },
+        { course: structure.className }
+      ]
+    };
+
+    if (structure.semester) {
+      profileQuery.semester = structure.semester;
+    }
+
+    const studentProfiles = await Profile.find(profileQuery).select("user");
     if (studentProfiles.length === 0) {
       return res.status(400).json({ msg: "No students found in this class" });
     }
@@ -189,6 +222,112 @@ router.post("/:id/pay", auth, async (req, res) => {
   }
 });
 
+router.post("/:id/razorpay/order", auth, async (req, res) => {
+  try {
+    const payment = await Payment.findById(req.params.id).populate("student", "name email");
+    if (!payment) {
+      return res.status(404).json({ msg: "Payment not found" });
+    }
+
+    if (!canAccessPayment(req, payment)) {
+      return res.status(403).json({ msg: "Access denied" });
+    }
+
+    if (!["admin", "student"].includes(req.user.role)) {
+      return res.status(403).json({ msg: "Access denied" });
+    }
+
+    if (payment.status === "paid") {
+      return res.status(400).json({ msg: "This fee is already paid" });
+    }
+
+    const razorpay = getRazorpay();
+    if (!razorpay) {
+      return res.status(500).json({ msg: "Razorpay test keys are not configured" });
+    }
+
+    const receipt = payment.receiptNumber || buildReceiptNumber();
+    const order = await razorpay.orders.create({
+      amount: Math.round(Number(payment.amount) * 100),
+      currency: "INR",
+      receipt,
+      notes: {
+        paymentId: payment._id.toString(),
+        feeType: payment.feeType,
+        student: payment.student?.name || ""
+      }
+    });
+
+    payment.gateway = "razorpay";
+    payment.gatewayOrderId = order.id;
+    payment.receiptNumber = receipt;
+    await payment.save();
+
+    res.json({
+      key: process.env.RAZORPAY_KEY_ID,
+      orderId: order.id,
+      amount: order.amount,
+      currency: order.currency,
+      name: "Smart Campus Management System",
+      description: payment.feeType,
+      paymentId: payment._id,
+      student: payment.student
+    });
+  } catch (err) {
+    res.status(500).json({ msg: err.message });
+  }
+});
+
+router.post("/:id/razorpay/verify", auth, async (req, res) => {
+  try {
+    const payment = await Payment.findById(req.params.id);
+    if (!payment) {
+      return res.status(404).json({ msg: "Payment not found" });
+    }
+
+    if (!canAccessPayment(req, payment)) {
+      return res.status(403).json({ msg: "Access denied" });
+    }
+
+    if (!process.env.RAZORPAY_KEY_SECRET) {
+      return res.status(500).json({ msg: "Razorpay key secret is not configured" });
+    }
+
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      return res.status(400).json({ msg: "Razorpay verification payload is incomplete" });
+    }
+
+    if (payment.gatewayOrderId !== razorpay_order_id) {
+      return res.status(400).json({ msg: "Razorpay order does not match this fee" });
+    }
+
+    const expectedSignature = crypto
+      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+      .digest("hex");
+
+    if (expectedSignature !== razorpay_signature) {
+      payment.status = "failed";
+      await payment.save();
+      return res.status(400).json({ msg: "Payment verification failed" });
+    }
+
+    payment.status = "paid";
+    payment.gateway = "razorpay";
+    payment.gatewayPaymentId = razorpay_payment_id;
+    payment.gatewaySignature = razorpay_signature;
+    payment.transactionId = razorpay_payment_id;
+    payment.receiptNumber = payment.receiptNumber || buildReceiptNumber();
+    payment.paidAt = new Date();
+    await payment.save();
+
+    res.json(await payment.populate("student", "name email"));
+  } catch (err) {
+    res.status(500).json({ msg: err.message });
+  }
+});
+
 router.get("/:id/receipt", auth, async (req, res) => {
   try {
     const payment = await Payment.findById(req.params.id)
@@ -205,6 +344,9 @@ router.get("/:id/receipt", auth, async (req, res) => {
     res.json({
       receiptNumber: payment.receiptNumber,
       transactionId: payment.transactionId,
+      gateway: payment.gateway,
+      gatewayOrderId: payment.gatewayOrderId,
+      gatewayPaymentId: payment.gatewayPaymentId,
       paidAt: payment.paidAt,
       feeType: payment.feeType,
       amount: payment.amount,

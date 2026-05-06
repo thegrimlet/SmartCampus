@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import API from "../services/api";
+import { contactValidationMessage } from "../utils/validators";
 
 const emptyProfile = {
   email: "",
@@ -59,6 +60,11 @@ export default function ProfilePanel({ user, adminMode = false }) {
   const saveProfile = async (event) => {
     event.preventDefault();
     setMessage("");
+    const validationMessage = contactValidationMessage(form);
+    if (validationMessage) {
+      setMessage(validationMessage);
+      return;
+    }
 
     await API.put(`/profiles/user/${adminMode ? selectedUser : user._id}`, {
       ...form,
@@ -89,8 +95,8 @@ export default function ProfilePanel({ user, adminMode = false }) {
       )}
 
       <div className="two-column">
-        <input className="input" type="email" placeholder="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-        <input className="input" placeholder="Phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+        <input className="input" type="email" placeholder="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
+        <input className="input" type="tel" placeholder="Phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
       </div>
 
       {adminMode && (

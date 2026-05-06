@@ -3,6 +3,7 @@ const Profile = require("../models/Profile");
 const ClassAssignment = require("../models/ClassAssignment");
 const User = require("../models/User");
 const auth = require("../middleware/authMiddleware");
+const { isValidEmail, isValidPhone } = require("../utils/validators");
 
 const canManageProfile = (req, targetUserId) =>
   req.user.role === "admin" || req.user.id === targetUserId;
@@ -79,6 +80,13 @@ router.put("/user/:userId", auth, async (req, res) => {
     }
 
     const normalizedEmail = req.body.email?.trim().toLowerCase();
+    if (normalizedEmail && !isValidEmail(normalizedEmail)) {
+      return res.status(400).json({ msg: "Enter a valid email address" });
+    }
+    if (!isValidPhone(req.body.phone)) {
+      return res.status(400).json({ msg: "Enter a valid phone number" });
+    }
+
     if (normalizedEmail && normalizedEmail !== user.email) {
       const existing = await User.findOne({ email: normalizedEmail, _id: { $ne: user._id } });
       if (existing) {
@@ -107,7 +115,7 @@ router.put("/user/:userId", auth, async (req, res) => {
     const profile = await Profile.findOneAndUpdate(
       { user: req.params.userId },
       profileUpdate,
-      { new: true, upsert: true, runValidators: true }
+      { returnDocument: "after", upsert: true, runValidators: true }
     ).populate("user", "name email role status");
 
     res.json(profile);

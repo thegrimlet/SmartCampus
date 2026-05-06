@@ -73,7 +73,7 @@ router.put("/:id", auth, async (req, res) => {
         totalSemYear: req.body.totalSemYear,
         department: req.body.department
       },
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     );
 
     if (!course) {

@@ -22,6 +22,10 @@ const paymentSchema = new mongoose.Schema({
     default: "due"
   },
   transactionId: { type: String, trim: true },
+  gatewayOrderId: { type: String, trim: true },
+  gatewayPaymentId: { type: String, trim: true },
+  gatewaySignature: { type: String, trim: true },
+  gateway: { type: String, trim: true },
   receiptNumber: { type: String, trim: true },
   paidAt: Date
 }, { timestamps: true });

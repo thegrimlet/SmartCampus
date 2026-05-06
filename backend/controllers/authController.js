@@ -3,6 +3,7 @@ const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { sendEmail } = require("../services/emailService");
+const { isValidEmail } = require("../utils/validators");
 
 const OTP_WINDOW_MS = 15 * 60 * 1000;
 
@@ -76,6 +77,9 @@ exports.recoverId = async (req, res) => {
     const normalizedEmail = req.body.email?.trim().toLowerCase();
     if (!normalizedEmail) {
       return res.status(400).json({ msg: "Email is required" });
+    }
+    if (!isValidEmail(normalizedEmail)) {
+      return res.status(400).json({ msg: "Enter a valid email address" });
     }
 
     const user = await User.findOne({ email: normalizedEmail });

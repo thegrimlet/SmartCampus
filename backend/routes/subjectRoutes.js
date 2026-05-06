@@ -84,7 +84,7 @@ router.put("/:id", auth, async (req, res) => {
         theoryMarks: Number(req.body.theoryMarks || 0),
         practicalMarks: Number(req.body.practicalMarks || 0)
       },
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     ).populate("course", "courseCode courseName semYearType totalSemYear");
 
     if (!subject) {

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import API from "../services/api";
+import { contactValidationMessage } from "../utils/validators";
 
 const emptyStudent = {
   course: "",
@@ -100,6 +101,11 @@ export default function StudentsPanel({ onChanged }) {
   const addStudent = async (event) => {
     event.preventDefault();
     setMessage("");
+    const validationMessage = contactValidationMessage(form);
+    if (validationMessage) {
+      setMessage(validationMessage);
+      return;
+    }
 
     try {
       if (editingId) {
@@ -238,8 +244,8 @@ export default function StudentsPanel({ onChanged }) {
             <input className="input" placeholder="Roll Number" value={form.rollNumber} onChange={(e) => updateForm("rollNumber", e.target.value)} />
             <input className="input" type="password" placeholder={editingId ? "New Password (optional)" : "Initial Password"} value={form.password} onChange={(e) => updateForm("password", e.target.value)} />
             <input className="input" placeholder="Student Name" value={form.name} onChange={(e) => updateForm("name", e.target.value)} />
-            <input className="input" type="email" placeholder="Email ID" value={form.email} onChange={(e) => updateForm("email", e.target.value)} />
-            <input className="input" placeholder="Contact Number" value={form.phone} onChange={(e) => updateForm("phone", e.target.value)} />
+            <input className="input" type="email" placeholder="Email ID" value={form.email} onChange={(e) => updateForm("email", e.target.value)} required />
+            <input className="input" type="tel" placeholder="Contact Number" value={form.phone} onChange={(e) => updateForm("phone", e.target.value)} />
             <input className="input" type="date" value={form.dateOfBirth} onChange={(e) => updateForm("dateOfBirth", e.target.value)} />
             <select className="input" value={form.gender} onChange={(e) => updateForm("gender", e.target.value)}>
               <option value="">---Select Gender---</option>

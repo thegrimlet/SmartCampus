@@ -14,14 +14,18 @@ import PaymentsPanel from "../components/PaymentsPanel";
 import ResultsPanel from "../components/ResultsPanel";
 import MessagesPanel from "../components/MessagesPanel";
 import StudentPortal from "../components/StudentPortal";
+import FacultySchedulePanel from "../components/FacultySchedulePanel";
+import AdminAttendanceRecords from "../components/AdminAttendanceRecords";
 
 const adminMenuItems = [
   { id: "notices", label: "Notice" },
   { id: "academics", label: "Course and Subject Management" },
   { id: "students", label: "Students" },
   { id: "faculties", label: "Faculties" },
+  { id: "attendance", label: "Attendance Records" },
   { id: "timetable", label: "Timetable Builder" },
-  { id: "fees", label: "Fees" }
+  { id: "fees", label: "Fees" },
+  { id: "results", label: "Result Portal" }
 ];
 
 const adminSectionTitles = {
@@ -29,12 +33,31 @@ const adminSectionTitles = {
   academics: "Course and Subject Management",
   students: "Students",
   faculties: "Faculties",
+  attendance: "Attendance Records",
   timetable: "Timetable Builder",
-  fees: "Fees"
+  fees: "Fees",
+  results: "Result Portal"
+};
+
+const facultyMenuItems = [
+  { id: "notices", label: "Notices" },
+  { id: "schedule", label: "Schedule" },
+  { id: "attendance", label: "Attendance" },
+  { id: "marks", label: "Marks" },
+  { id: "messages", label: "Messages" }
+];
+
+const facultySectionTitles = {
+  notices: "Notices",
+  schedule: "Schedule",
+  attendance: "Attendance",
+  marks: "Marks",
+  messages: "Messages"
 };
 
 export default function Dashboard() {
   const [activeAdminSection, setActiveAdminSection] = useState("notices");
+  const [activeFacultySection, setActiveFacultySection] = useState("notices");
   const [notices, setNotices] = useState([]);
   const [stats, setStats] = useState({
     totalStudents: 0,
@@ -214,6 +237,12 @@ export default function Dashboard() {
             <FacultiesPanel onChanged={fetchStats} />
           </div>
         );
+      case "attendance":
+        return (
+          <div className="panel">
+            <AdminAttendanceRecords />
+          </div>
+        );
       case "timetable":
         return (
           <div className="panel">
@@ -224,6 +253,12 @@ export default function Dashboard() {
         return (
           <div className="panel">
             <PaymentsPanel user={user} />
+          </div>
+        );
+      case "results":
+        return (
+          <div className="panel">
+            <ResultsPanel user={user} />
           </div>
         );
       default:
@@ -276,6 +311,102 @@ export default function Dashboard() {
           </section>
 
           {renderAdminSection()}
+        </main>
+      </div>
+    );
+  }
+
+  const renderFacultyNotices = () => (
+    <div className="panel stack">
+      <h3>Notices</h3>
+      {notices.length === 0 ? (
+        <p className="muted">No notices for your role yet.</p>
+      ) : notices.map((n) => (
+        <div key={n._id} className="notice-card">
+          <p className="eyebrow">{n.role}</p>
+          <h4>{n.title}</h4>
+          <p>{n.content}</p>
+        </div>
+      ))}
+    </div>
+  );
+
+  const renderFacultySection = () => {
+    switch (activeFacultySection) {
+      case "schedule":
+        return (
+          <div className="panel">
+            <FacultySchedulePanel />
+          </div>
+        );
+      case "attendance":
+        return (
+          <div className="panel">
+            <AttendanceForm />
+          </div>
+        );
+      case "marks":
+        return (
+          <div className="panel">
+            <ResultsPanel user={user} />
+          </div>
+        );
+      case "messages":
+        return (
+          <div className="panel">
+            <MessagesPanel user={user} />
+          </div>
+        );
+      default:
+        return renderFacultyNotices();
+    }
+  };
+
+  if (user.role === "faculty") {
+    return (
+      <div className="faculty-shell">
+        <aside className="faculty-sidebar">
+          <div className="student-brand">
+            <span className="student-brand-mark">FC</span>
+            <div>
+              <strong>Faculty</strong>
+              <p>Smart Campus</p>
+            </div>
+          </div>
+
+          <nav className="student-nav">
+            {facultyMenuItems.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className={`student-nav-link ${activeFacultySection === item.id ? "active" : ""}`}
+                onClick={() => setActiveFacultySection(item.id)}
+              >
+                {item.label}
+              </button>
+            ))}
+          </nav>
+        </aside>
+
+        <main className="faculty-main">
+          <section className="student-topbar">
+            <div>
+              <p className="eyebrow">Faculty Dashboard</p>
+              <h1>{facultySectionTitles[activeFacultySection]}</h1>
+              <p className="muted">{user.name} | {user.email}</p>
+            </div>
+
+            <div className="button-row">
+              <Link className="button btn-edit link-button" to="/profile">
+                Profile
+              </Link>
+              <button className="button logout" onClick={handleLogout}>
+                Logout
+              </button>
+            </div>
+          </section>
+
+          {renderFacultySection()}
         </main>
       </div>
     );

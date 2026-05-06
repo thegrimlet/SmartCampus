@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import API from "../services/api";
+import { contactValidationMessage } from "../utils/validators";
 
 const emptyFaculty = {
   facultyNumber: "",
@@ -40,6 +41,11 @@ export default function FacultiesPanel({ onChanged }) {
   const addFaculty = async (event) => {
     event.preventDefault();
     setMessage("");
+    const validationMessage = contactValidationMessage(form);
+    if (validationMessage) {
+      setMessage(validationMessage);
+      return;
+    }
 
     try {
       await API.post("/users/faculty", form);
@@ -75,8 +81,8 @@ export default function FacultiesPanel({ onChanged }) {
             <input className="input" placeholder="Faculty Name" value={form.name} onChange={(e) => updateForm("name", e.target.value)} />
             <input className="input" placeholder="State" value={form.state} onChange={(e) => updateForm("state", e.target.value)} />
             <input className="input" placeholder="City" value={form.city} onChange={(e) => updateForm("city", e.target.value)} />
-            <input className="input" type="email" placeholder="Email ID" value={form.email} onChange={(e) => updateForm("email", e.target.value)} />
-            <input className="input" placeholder="Contact Number" value={form.phone} onChange={(e) => updateForm("phone", e.target.value)} />
+            <input className="input" type="email" placeholder="Email ID" value={form.email} onChange={(e) => updateForm("email", e.target.value)} required />
+            <input className="input" type="tel" placeholder="Contact Number" value={form.phone} onChange={(e) => updateForm("phone", e.target.value)} />
             <input className="input" placeholder="Qualification" value={form.qualification} onChange={(e) => updateForm("qualification", e.target.value)} />
             <input className="input" placeholder="Experience" value={form.experience} onChange={(e) => updateForm("experience", e.target.value)} />
             <input className="input" type="date" value={form.dateOfBirth} onChange={(e) => updateForm("dateOfBirth", e.target.value)} />
