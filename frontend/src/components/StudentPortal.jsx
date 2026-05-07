@@ -9,6 +9,7 @@ const menuItems = [
   { id: "attendance", label: "My Attendance" },
   { id: "payments", label: "Fee Details" },
   { id: "results", label: "Results" },
+  { id: "notices", label: "Notices" },
   { id: "messages", label: "Messages" },
   { id: "profile", label: "Profile" }
 ];
@@ -19,6 +20,7 @@ const panelTitles = {
   attendance: "My Attendance",
   payments: "Fee Details",
   results: "Results",
+  notices: "Notices",
   messages: "Messages",
   profile: "Profile"
 };
@@ -105,6 +107,7 @@ export default function StudentPortal({ user, onLogout }) {
   const [records, setRecords] = useState([]);
   const [payments, setPayments] = useState([]);
   const [results, setResults] = useState([]);
+  const [notices, setNotices] = useState([]);
   const [timetable, setTimetable] = useState([]);
   const [messages, setMessages] = useState([]);
   const [profile, setProfile] = useState(null);
@@ -121,6 +124,7 @@ export default function StudentPortal({ user, onLogout }) {
         summaryRes,
         paymentsRes,
         resultsRes,
+        noticesRes,
         timetableRes,
         messagesRes,
         profileRes
@@ -129,6 +133,7 @@ export default function StudentPortal({ user, onLogout }) {
         API.get(`/attendance/summary/${user._id}`),
         API.get("/payments"),
         API.get("/results"),
+        API.get("/notices"),
         API.get("/timetable"),
         API.get("/messages"),
         API.get("/profiles/me")
@@ -138,6 +143,7 @@ export default function StudentPortal({ user, onLogout }) {
       setSummary(summaryRes.data);
       setPayments(paymentsRes.data);
       setResults(resultsRes.data);
+      setNotices(noticesRes.data);
       setTimetable(timetableRes.data);
       setMessages(messagesRes.data);
       setProfile(profileRes.data);
@@ -790,6 +796,28 @@ export default function StudentPortal({ user, onLogout }) {
     );
   };
 
+  const renderNotices = () => (
+    <section className="student-single-grid">
+      <article className="student-panel">
+        <div className="student-panel-head"><h2>Notices</h2></div>
+        <div className="student-panel-body">
+          {notices.length === 0 ? (
+            <p className="muted">No notices for your role yet.</p>
+          ) : notices.map((notice) => (
+            <div key={notice._id} className="notice-card">
+              <p className="eyebrow">{notice.role}</p>
+              <h4>{notice.title}</h4>
+              <p>{notice.content}</p>
+              {notice.createdAt && (
+                <p className="muted">{new Date(notice.createdAt).toLocaleDateString()}</p>
+              )}
+            </div>
+          ))}
+        </div>
+      </article>
+    </section>
+  );
+
   const renderSection = () => {
     switch (activeSection) {
       case "timetable":
@@ -886,6 +914,8 @@ export default function StudentPortal({ user, onLogout }) {
         );
       case "results":
         return renderExaminationResults();
+      case "notices":
+        return renderNotices();
       case "messages":
         return (
           <section className="student-single-grid">
