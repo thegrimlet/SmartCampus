@@ -10,6 +10,8 @@ const OTP_WINDOW_MS = 15 * 60 * 1000;
 const hashValue = (value) =>
   crypto.createHash("sha256").update(value).digest("hex");
 
+const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 const createOtp = () => String(Math.floor(100000 + Math.random() * 900000));
 
 const buildOtpResponse = (message, deliveryResult, otpCode) => {
@@ -27,7 +29,7 @@ const findByIdentifier = async (identifier) => {
   const normalizedEmail = value.toLowerCase();
   return User.findOne({
     $or: [
-      { institutionalId: value },
+      { institutionalId: new RegExp(`^${escapeRegex(value)}$`, "i") },
       { email: normalizedEmail }
     ]
   });

@@ -23,7 +23,7 @@ export default function Login() {
 
       window.location.href = "/dashboard";
     } catch (err) {
-      setMessage(err.response?.data?.msg || "Login failed");
+      setMessage(err.response?.data?.msg || "Could not reach the login server. Check that the backend is running and refresh the page.");
     }
   };
 
